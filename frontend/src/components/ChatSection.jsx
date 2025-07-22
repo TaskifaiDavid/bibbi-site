@@ -27,24 +27,39 @@ const ChatSection = () => {
 
     try {
       const token = localStorage.getItem('access_token')
-      if (!token) {
-        throw new Error('No authentication token found. Please login again.')
-      }
+      console.log('Chat request - Token check:', { 
+        hasToken: !!token,
+        tokenLength: token ? token.length : 0 
+      })
 
       const response = await fetch('http://localhost:8000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
-        body: JSON.stringify({ message: currentMessage }) // Use stored message
+        body: JSON.stringify({ message: currentMessage })
       })
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please login again.')
+          // Clear invalid token and prompt re-login
+          localStorage.removeItem('access_token')
+          throw new Error('Your session has expired. Please refresh the page and login again.')
         }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        
+        // Try to get error details from response
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        try {
+          const errorData = await response.json()
+          if (errorData.detail) {
+            errorMessage = errorData.detail
+          }
+        } catch (e) {
+          // Keep default error message if can't parse JSON
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
@@ -156,11 +171,11 @@ const ChatSection = () => {
             <div className="message ai">
               <div className="message-header">
                 <span className="message-sender">🤖 AI Assistant</span>
-                <span className="message-time">Analyzing...</span>
+                <span className="message-time">Thinking...</span>
               </div>
               <div className="message-content loading">
                 <div className="loading-animation">
-                  <span>Analyzing your data</span>
+                  <span>Thinking</span>
                   <div className="loading-dots">
                     <span>.</span><span>.</span><span>.</span>
                   </div>
@@ -193,322 +208,6 @@ const ChatSection = () => {
         </div>
       </div>
 
-      <style jsx>{`
-        .chat-section {
-          display: flex;
-          flex-direction: column;
-          height: calc(100vh - 120px);
-          background: #f8f9fa;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-
-        .chat-header {
-          background: linear-gradient(135deg, #007bff, #0056b3);
-          color: white;
-          padding: 20px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .header-content h2 {
-          margin: 0 0 5px 0;
-          font-size: 24px;
-        }
-
-        .header-content p {
-          margin: 0;
-          opacity: 0.9;
-          font-size: 14px;
-        }
-
-        .chat-actions .btn-secondary {
-          background: rgba(255,255,255,0.2);
-          border: 1px solid rgba(255,255,255,0.3);
-          color: white;
-          padding: 8px 16px;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 14px;
-        }
-
-        .chat-actions .btn-secondary:hover:not(:disabled) {
-          background: rgba(255,255,255,0.3);
-        }
-
-        .chat-actions .btn-secondary:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .chat-container {
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          background: white;
-        }
-
-        .chat-messages {
-          flex: 1;
-          overflow-y: auto;
-          max-height: calc(100vh - 280px);
-          padding: 20px;
-          background: #fafafa;
-          scroll-behavior: smooth;
-        }
-
-        .welcome-section {
-          text-align: center;
-          max-width: 800px;
-          margin: 40px auto;
-        }
-
-        .welcome-message {
-          background: white;
-          padding: 30px;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          margin-bottom: 30px;
-        }
-
-        .welcome-message h3 {
-          margin: 0 0 15px 0;
-          color: #333;
-          font-size: 24px;
-        }
-
-        .welcome-message p {
-          margin: 0;
-          color: #666;
-          font-size: 16px;
-          line-height: 1.5;
-        }
-
-        .sample-questions {
-          background: white;
-          padding: 25px;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .sample-questions h4 {
-          margin: 0 0 20px 0;
-          color: #333;
-          font-size: 18px;
-        }
-
-        .question-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 12px;
-        }
-
-        .sample-question {
-          background: #f8f9fa;
-          border: 2px solid #e9ecef;
-          padding: 12px 16px;
-          border-radius: 8px;
-          cursor: pointer;
-          text-align: left;
-          font-size: 14px;
-          transition: all 0.2s ease;
-        }
-
-        .sample-question:hover {
-          background: #e3f2fd;
-          border-color: #007bff;
-          transform: translateY(-1px);
-        }
-
-        .message {
-          margin-bottom: 20px;
-          max-width: 85%;
-        }
-
-        .message.user {
-          margin-left: auto;
-        }
-
-        .message.ai {
-          margin-right: auto;
-        }
-
-        .message-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-          font-size: 12px;
-          color: #666;
-        }
-
-        .message-sender {
-          font-weight: 600;
-        }
-
-        .message-time {
-          opacity: 0.7;
-        }
-
-        .message-content {
-          position: relative;
-          padding: 16px 20px;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-          max-width: 100%;
-        }
-
-        .message.user .message-content {
-          background: #007bff;
-          color: white;
-          border-bottom-right-radius: 4px;
-        }
-
-        .message.ai .message-content {
-          background: white;
-          color: #333;
-          border: 1px solid #e9ecef;
-          border-bottom-left-radius: 4px;
-        }
-
-        .message-content pre {
-          margin: 0;
-          white-space: pre-wrap;
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-          font-family: inherit;
-          font-size: 14px;
-          line-height: 1.5;
-          max-width: 100%;
-          overflow-x: auto;
-        }
-
-        .copy-btn {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          background: #f8f9fa;
-          border: 1px solid #dee2e6;
-          border-radius: 4px;
-          padding: 4px 8px;
-          cursor: pointer;
-          font-size: 12px;
-          opacity: 0.7;
-          transition: opacity 0.2s ease;
-        }
-
-        .copy-btn:hover {
-          opacity: 1;
-        }
-
-        .loading-animation {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #666;
-        }
-
-        .loading-dots {
-          display: flex;
-          gap: 2px;
-        }
-
-        .loading-dots span {
-          animation: loading 1.4s infinite ease-in-out;
-        }
-
-        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
-
-        @keyframes loading {
-          0%, 80%, 100% { opacity: 0; }
-          40% { opacity: 1; }
-        }
-
-        .chat-input-section {
-          background: white;
-          border-top: 1px solid #e9ecef;
-          padding: 20px;
-        }
-
-        .input-container {
-          display: flex;
-          gap: 12px;
-          max-width: 1000px;
-          margin: 0 auto;
-        }
-
-        .chat-input {
-          flex: 1;
-          border: 2px solid #e9ecef;
-          border-radius: 8px;
-          padding: 12px 16px;
-          resize: none;
-          font-family: inherit;
-          font-size: 14px;
-          line-height: 1.4;
-          transition: border-color 0.2s ease;
-        }
-
-        .chat-input:focus {
-          outline: none;
-          border-color: #007bff;
-        }
-
-        .chat-input:disabled {
-          background: #f8f9fa;
-          cursor: not-allowed;
-        }
-
-        .send-btn {
-          background: #007bff;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          padding: 12px 24px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 600;
-          transition: background-color 0.2s ease;
-          white-space: nowrap;
-        }
-
-        .send-btn:disabled {
-          background: #6c757d;
-          cursor: not-allowed;
-        }
-
-        .send-btn:not(:disabled):hover {
-          background: #0056b3;
-        }
-
-        @media (max-width: 768px) {
-          .chat-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 15px;
-          }
-
-          .question-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .message {
-            max-width: 95%;
-          }
-
-          .input-container {
-            flex-direction: column;
-          }
-
-          .send-btn {
-            align-self: flex-end;
-          }
-        }
-      `}</style>
     </div>
   )
 }

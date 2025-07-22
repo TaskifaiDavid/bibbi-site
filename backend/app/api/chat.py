@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
@@ -54,11 +54,11 @@ class SupabaseSQLDatabase:
         try:
             # For demo purposes, return some sample data about sales
             if "sellout_entries2" in command.lower():
-                # Get recent sales data - this won't break your Excel cleaning
+                # Get comprehensive sales data for accurate multi-reseller analysis
                 result = self.db_service.supabase.table("sellout_entries2")\
                     .select("functional_name, reseller, sales_eur, quantity, month, year")\
                     .order("created_at", desc=True)\
-                    .limit(10)\
+                    .limit(5000)\
                     .execute()
                 
                 if result.data:
@@ -124,54 +124,104 @@ class SupabaseChatAgent:
             if self.debug_mode:
                 logger.info("📊 Fetching user-specific sales data...")
             
-            # Extract year from user message for filtering
-            year_filter = self._extract_year_from_message(user_message)
-            if self.debug_mode and year_filter:
-                logger.info(f"📅 Year filter detected: {year_filter}")
+            # Extract years and months from user message for filtering
+            years_filter = self._extract_years_from_message(user_message)
+            months_filter = self._extract_months_from_message(user_message)
+            intent = self._analyze_question_intent(user_message)
             
-            # Build query with optional year filtering
+            if self.debug_mode and years_filter:
+                logger.info(f"📅 Years filter detected: {years_filter}")
+            if self.debug_mode and months_filter:
+                logger.info(f"📅 Months filter detected: {months_filter}")
+            
+            # For comparison queries, we need broader data - don't limit by year
+            is_comparison = intent == "COMPARISON" or any(word in user_message.lower() for word in ['compare', 'vs', 'versus'])
+            
+            # Build query to access ALL sellout_entries2 data (no user filtering)
             if user_id:
-                # Filter by user ID through uploads relationship
+                # Query ALL data from sellout_entries2 regardless of upload source
                 query = self.db_service.supabase.table("sellout_entries2")\
-                    .select("functional_name, reseller, sales_eur, quantity, month, year, product_ean, currency, uploads!inner(user_id)")\
-                    .eq("uploads.user_id", user_id)
+                    .select("functional_name, reseller, sales_eur, quantity, month, year, product_ean, currency")
                 
-                # Add year filter if detected
-                if year_filter:
-                    query = query.eq("year", year_filter)
-                    if self.debug_mode:
-                        logger.info(f"📅 Applied year filter: {year_filter}")
+                # Add year filter if detected and not a comparison query
+                if years_filter and not is_comparison:
+                    if len(years_filter) == 1:
+                        query = query.eq("year", years_filter[0])
+                        if self.debug_mode:
+                            logger.info(f"📅 Applied single year filter: {years_filter[0]}")
+                    else:
+                        query = query.in_("year", years_filter)
+                        if self.debug_mode:
+                            logger.info(f"📅 Applied multiple year filter: {years_filter}")
+                elif is_comparison and self.debug_mode:
+                    logger.info("🔄 Comparison query detected - fetching all years for analysis")
                 
-                result = query.order("created_at", desc=True).limit(500).execute()
+                # Add month filter if detected
+                if months_filter:
+                    if len(months_filter) == 1:
+                        query = query.eq("month", months_filter[0])
+                        if self.debug_mode:
+                            logger.info(f"📅 Applied single month filter: {months_filter[0]}")
+                    else:
+                        query = query.in_("month", months_filter)
+                        if self.debug_mode:
+                            logger.info(f"📅 Applied multiple month filter: {months_filter}")
+                
+                result = query.order("created_at", desc=True).limit(5000).execute()
                 
                 if self.debug_mode:
-                    logger.info(f"✅ Found {len(result.data) if result.data else 0} records for user {user_id} (year: {year_filter or 'all'})")
+                    logger.info(f"✅ Found {len(result.data) if result.data else 0} total records from ALL sellout_entries2 data (years: {years_filter or 'all'}, months: {months_filter or 'all'})")
+                    if result.data and len(result.data) >= 5000:
+                        logger.warning("⚠️ Hit 5000 record limit - consider increasing for complete 10x growth analysis")
             else:
                 # Fallback to recent data if no user ID
                 query = self.db_service.supabase.table("sellout_entries2")\
                     .select("functional_name, reseller, sales_eur, quantity, month, year, product_ean, currency")
                 
-                # Add year filter if detected
-                if year_filter:
-                    query = query.eq("year", year_filter)
+                # Add year filter if detected and not a comparison query
+                if years_filter and not is_comparison:
+                    if len(years_filter) == 1:
+                        query = query.eq("year", years_filter[0])
+                    else:
+                        query = query.in_("year", years_filter)
                     if self.debug_mode:
-                        logger.info(f"📅 Applied year filter to fallback query: {year_filter}")
+                        logger.info(f"📅 Applied year filter to fallback query: {years_filter}")
                 
-                result = query.order("created_at", desc=True).limit(500).execute()
+                # Add month filter if detected
+                if months_filter:
+                    if len(months_filter) == 1:
+                        query = query.eq("month", months_filter[0])
+                    else:
+                        query = query.in_("month", months_filter)
+                    if self.debug_mode:
+                        logger.info(f"📅 Applied month filter to fallback query: {months_filter}")
+                
+                result = query.order("created_at", desc=True).limit(5000).execute()
                 
                 if self.debug_mode:
                     logger.warning("⚠️ No user ID provided, using recent data fallback")
-                    logger.info(f"📊 Found {len(result.data) if result.data else 0} total records (year: {year_filter or 'all'})")
+                    logger.info(f"📊 Found {len(result.data) if result.data else 0} total records (years: {years_filter or 'all'}, months: {months_filter or 'all'})")
+                    if result.data and len(result.data) >= 5000:
+                        logger.warning("⚠️ Hit 5000 record limit in fallback mode - consider increasing for complete 10x growth analysis")
             
             if result.data:
-                # Clean the data (remove uploads join data)
-                clean_data = []
-                for row in result.data:
-                    clean_row = {k: v for k, v in row.items() if k != 'uploads'}
-                    clean_data.append(clean_row)
+                # Use the data directly (no uploads join to clean)
+                clean_data = result.data
                 
                 if self.debug_mode:
                     logger.info(f"🧹 Cleaned data: {len(clean_data)} records")
+                    
+                    # Log reseller distribution for 10x growth analysis
+                    resellers_found = set(row.get('reseller') for row in clean_data if row.get('reseller'))
+                    logger.info(f"🏢 Resellers found in dataset: {list(resellers_found)} ({len(resellers_found)} unique)")
+                    
+                    # Log record distribution by reseller
+                    reseller_counts = {}
+                    for row in clean_data:
+                        reseller = row.get('reseller', 'Unknown')
+                        reseller_counts[reseller] = reseller_counts.get(reseller, 0) + 1
+                    logger.info(f"📊 Record distribution by reseller: {dict(sorted(reseller_counts.items(), key=lambda x: x[1], reverse=True))}")
+                    
                     logger.info(f"📈 Sample record: {clean_data[0] if clean_data else 'None'}")
                 
                 # Analyze user's question intent
@@ -184,27 +234,60 @@ class SupabaseChatAgent:
                 
                 if self.debug_mode:
                     logger.info(f"📋 Data summary length: {len(data_summary)} characters")
+                    logger.info(f"📋 Data summary preview: {data_summary[:500]}...")
                     logger.info("🔍 Sending to LLM for analysis...")
                 
-                prompt = f"""
-                You are an expert sales data analyst. Based on the following sales data, answer the user's question with detailed analysis.
+                # Create specialized prompt for comparison queries
+                if intent == "COMPARISON":
+                    prompt = f"""
+                    You are an expert sales data analyst. Based on the following sales data, perform a detailed comparison analysis.
+                    
+                    IMPORTANT: Only show the Conclusion you make with specific numbers and calculations.
+                    
+                    CRITICAL: When calculating totals, ALWAYS aggregate across ALL resellers and ALL records in the data. 
+                    Do NOT focus on individual resellers unless the question specifically asks for a reseller breakdown.
+                    Show combined totals from all sales channels/resellers for each period being compared.
+                    
+                    Sales Data Summary:
+                    {data_summary}
+                    
+                    Question Intent: {intent}
+                    User Question: {user_message}
+                    
+                    For COMPARISON queries, please:
+                    1. Extract the specific periods/products/entities being compared from the user question
+                    2. Use the DETAILED PERIOD-BY-PERIOD data provided above for accurate numbers
+                    3. Calculate exact differences and percentage changes using TOTAL aggregated amounts
+                    4. Provide clear before/after or A vs B comparison format with complete dataset totals
+                    5. Include business insights about the comparison across all sales channels
+                    
+                    Instructions: Ensure all calculations represent the complete dataset across all resellers.
+                    """
+                else:
+                    prompt = f"""
+                    You are an expert sales data analyst. Based on the following sales data, answer the user's question with detailed analysis.
+                    
+                    IMPORTANT: Only show the Conclusion you make.
+                    
+                    CRITICAL: When calculating totals, ALWAYS aggregate across ALL resellers and ALL records in the data. 
+                    Do NOT focus on individual resellers unless the question specifically asks for a reseller breakdown.
+                    Show combined totals from all sales channels/resellers.
+                    
+                    Sales Data Summary:
+                    {data_summary}
+                    
+                    Question Intent: {intent}
+                    User Question: {user_message}
+                    
+                    Instructions:
+                1. Analyze the data carefully across ALL resellers and records
+                2. Provide specific numbers and calculations that represent the COMPLETE dataset
+                3. If grouping data (by reseller, product, time), show the breakdown only when specifically requested
+                4. For general questions, provide aggregated totals across all sales channels
+                5. Format numbers with currency symbols and proper formatting
+                6. If the data doesn't contain enough information, explain what's available and what's missing
                 
-                IMPORTANT: Show your calculations step by step and provide specific numbers from the data.
-                
-                Sales Data Summary:
-                {data_summary}
-                
-                Question Intent: {intent}
-                User Question: {user_message}
-                
-                Instructions:
-                1. Analyze the data carefully
-                2. Provide specific numbers and calculations 
-                3. If grouping data (by reseller, product, time), show the breakdown
-                4. Format numbers with currency symbols and proper formatting
-                5. If the data doesn't contain enough information, explain what's available and what's missing
-                
-                Be thorough and analytical in your response.
+                Be thorough and analytical in your response, ensuring totals represent the entire dataset.
                 """
                 
                 # Use the LLM to generate a response
@@ -235,8 +318,8 @@ class SupabaseChatAgent:
         result = self.invoke({"input": input_text})
         return result.get("output", "Error processing request")
     
-    def _extract_year_from_message(self, user_message):
-        """Extract year from user message for filtering"""
+    def _extract_years_from_message(self, user_message):
+        """Extract all years from user message for filtering"""
         import re
         
         # Look for 4-digit years (2020-2030)
@@ -244,9 +327,31 @@ class SupabaseChatAgent:
         matches = re.findall(year_pattern, user_message)
         
         if matches:
-            return int(matches[0])  # Return first year found
+            # Return unique years as integers, sorted
+            unique_years = sorted(list(set(int(year) for year in matches)))
+            return unique_years
         
-        return None
+        return []
+    
+    def _extract_months_from_message(self, user_message):
+        """Extract month names from user message"""
+        import re
+        
+        message_lower = user_message.lower()
+        months = {
+            'january': 1, 'jan': 1, 'february': 2, 'feb': 2, 'march': 3, 'mar': 3,
+            'april': 4, 'apr': 4, 'may': 5, 'june': 6, 'jun': 6, 'july': 7, 'jul': 7,
+            'august': 8, 'aug': 8, 'september': 9, 'sep': 9, 'october': 10, 'oct': 10,
+            'november': 11, 'nov': 11, 'december': 12, 'dec': 12
+        }
+        
+        found_months = []
+        for month_name, month_num in months.items():
+            if re.search(rf'\b{month_name}\b', message_lower):
+                found_months.append(month_num)
+        
+        # Return unique months, sorted
+        return sorted(list(set(found_months)))
     
     def _analyze_question_intent(self, user_message):
         """Analyze user's question to understand their intent"""
@@ -268,8 +373,8 @@ class SupabaseChatAgent:
         elif any(word in message_lower for word in ['total', 'sum', 'overall', 'all', 'entire']):
             return "TOTAL_SUMMARY"
         
-        # Comparison queries
-        elif any(word in message_lower for word in ['compare', 'vs', 'versus', 'difference', 'higher', 'lower', 'best', 'worst']):
+        # Comparison queries - enhanced detection
+        elif any(word in message_lower for word in ['compare', 'vs', 'versus', 'difference', 'higher', 'lower', 'best', 'worst', 'against', 'between', 'than']):
             return "COMPARISON"
         
         else:
@@ -294,9 +399,9 @@ class SupabaseChatAgent:
             years = set(row.get('year') for row in data if row.get('year'))
             months = set(row.get('month') for row in data if row.get('month'))
             
-            # Build comprehensive analysis
+            # Build comprehensive analysis with intent-specific focus
             summary = f"""
-            COMPLETE SALES DATA ANALYSIS ({len(data)} total records):
+            COMPLETE SALES DATA ANALYSIS ({len(data)} total records) - Intent: {intent}:
             - Total Sales: €{total_sales:,.2f}
             - Total Quantity: {total_quantity:,} units
             - Unique Products: {len(products)} products
@@ -304,6 +409,18 @@ class SupabaseChatAgent:
             - Currencies: {', '.join(currencies)}
             - Time Period: Years {sorted(years)}, Months {sorted(months)}
             """
+            
+            # Add intent-specific note and detailed breakdowns
+            if intent == "COMPARISON":
+                summary += f"\n\nNOTE: This is a COMPARISON query. Focus on comparing different time periods, products, or resellers based on the user's question."
+                
+                # Add detailed period-specific breakdowns for comparisons
+                period_analysis = self._create_period_comparison_analysis(data)
+                if period_analysis:
+                    summary += f"\n\n{period_analysis}"
+                    
+            elif intent == "TIME_ANALYSIS":
+                summary += f"\n\nNOTE: This is a TIME ANALYSIS query. Focus on temporal trends, seasonal patterns, and period-over-period changes."
             
             # ALWAYS provide complete breakdowns for accurate analysis
             # 1. Complete Reseller Analysis
@@ -382,6 +499,103 @@ class SupabaseChatAgent:
             
         except Exception as e:
             return f"Data available but error in summary: {str(e)}"
+    
+    def _create_period_comparison_analysis(self, data):
+        """Create detailed period-by-period comparison analysis"""
+        if not data:
+            return None
+            
+        try:
+            # Group data by year-month combinations
+            period_totals = {}
+            period_quantities = {}
+            period_products = {}
+            
+            for row in data:
+                year = row.get('year')
+                month = row.get('month')
+                sales = float(row.get('sales_eur', 0) or 0)
+                quantity = int(row.get('quantity', 0) or 0)
+                product = row.get('functional_name', 'Unknown')
+                
+                if year and month:
+                    # Create period key (e.g., "2024-05" for May 2024)
+                    period_key = f"{year}-{month:02d}"
+                    
+                    # Initialize period if not exists
+                    if period_key not in period_totals:
+                        period_totals[period_key] = 0
+                        period_quantities[period_key] = 0
+                        period_products[period_key] = set()
+                    
+                    # Accumulate data for this period
+                    period_totals[period_key] += sales
+                    period_quantities[period_key] += quantity
+                    period_products[period_key].add(product)
+            
+            # Create detailed comparison summary
+            comparison_summary = "DETAILED PERIOD-BY-PERIOD COMPARISON ANALYSIS:\n"
+            
+            # Sort periods chronologically
+            sorted_periods = sorted(period_totals.keys())
+            
+            for period in sorted_periods:
+                year, month = period.split('-')
+                month_name = {
+                    '01': 'January', '02': 'February', '03': 'March', '04': 'April',
+                    '05': 'May', '06': 'June', '07': 'July', '08': 'August',
+                    '09': 'September', '10': 'October', '11': 'November', '12': 'December'
+                }.get(month, f"Month {month}")
+                
+                total_sales = period_totals[period]
+                total_quantity = period_quantities[period]
+                unique_products = len(period_products[period])
+                
+                comparison_summary += f"\n📅 {month_name} {year}:\n"
+                comparison_summary += f"   - Sales: €{total_sales:,.2f}\n"
+                comparison_summary += f"   - Quantity: {total_quantity:,} units\n"
+                comparison_summary += f"   - Products: {unique_products} unique products\n"
+            
+            # Add growth calculations if we have multiple periods
+            if len(sorted_periods) >= 2:
+                comparison_summary += "\n📊 PERIOD-TO-PERIOD CHANGES:\n"
+                
+                for i in range(1, len(sorted_periods)):
+                    current_period = sorted_periods[i]
+                    previous_period = sorted_periods[i-1]
+                    
+                    current_sales = period_totals[current_period]
+                    previous_sales = period_totals[previous_period]
+                    
+                    if previous_sales > 0:
+                        change_amount = current_sales - previous_sales
+                        change_percent = (change_amount / previous_sales) * 100
+                        
+                        year_curr, month_curr = current_period.split('-')
+                        year_prev, month_prev = previous_period.split('-')
+                        
+                        month_name_curr = {
+                            '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
+                            '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
+                            '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+                        }.get(month_curr, f"M{month_curr}")
+                        
+                        month_name_prev = {
+                            '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
+                            '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
+                            '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+                        }.get(month_prev, f"M{month_prev}")
+                        
+                        direction = "↗️ INCREASE" if change_amount > 0 else "↘️ DECREASE"
+                        
+                        comparison_summary += f"\n   {month_name_prev} {year_prev} → {month_name_curr} {year_curr}: €{change_amount:,.2f} ({change_percent:+.1f}%) {direction}"
+            
+            comparison_summary += f"\n\nIMPORTANT: Use the above period-specific data for accurate comparisons. Each period's sales total is calculated precisely."
+            
+            return comparison_summary
+            
+        except Exception as e:
+            return f"Error creating period comparison: {str(e)}"
 
 class ChatRequest(BaseModel):
     message: str
@@ -398,118 +612,131 @@ _supabase_db_service = None
 def get_database():
     """Get or create database connection for LangChain chat functionality"""
     global _db
-    if _db is None:
+    
+    if _db is not None:
+        return _db
+    
+    try:
         settings = get_settings()
         
-        # Try multiple connection approaches
-        connection_attempts = [
-            ("Explicit DATABASE_URL", settings.langchain_database_url),
+        # Attempt to get database URL for direct PostgreSQL connection
+        db_url = settings.langchain_database_url
+        
+        # Test connection with multiple attempts
+        attempts = [
+            ("Direct PostgreSQL via DATABASE_URL", db_url),
+            ("Supabase REST API (Fallback)", None)
         ]
         
-        for attempt_name, db_url in connection_attempts:
+        for attempt_name, url in attempts:
             try:
-                logger.info(f"Attempting database connection using: {attempt_name}")
-                logger.info(f"Connection string format: {db_url[:50]}...")
-                
-                _db = SQLDatabase.from_uri(db_url)
-                
-                # Test the connection
-                test_result = _db.run("SELECT 1 as test")
-                logger.info(f"Database connection successful with {attempt_name}")
-                logger.info(f"Test query result: {test_result}")
-                
-                return _db
-                
-            except Exception as e:
-                logger.warning(f"Connection attempt '{attempt_name}' failed: {str(e)}")
-                _db = None
+                if url:
+                    logger.info(f"Attempting connection with {attempt_name}")
+                    _db = SQLDatabase.from_uri(url)
+                    
+                    # Test the connection
+                    test_result = _db.run("SELECT 1 as test")
+                    logger.info(f"Database connection successful with {attempt_name}")
+                    logger.info(f"Test query result: {test_result}")
+                    
+                    return _db
+                else:
+                    # Use Supabase REST API fallback
+                    logger.warning("DATABASE_URL not available, using Supabase REST API fallback")
+                    global _use_supabase_fallback
+                    _use_supabase_fallback = True
+                    _db = SupabaseSQLDatabase()
+                    logger.info("✅ Supabase REST API fallback initialized successfully")
+                    return _db
+                    
+            except Exception as attempt_error:
+                logger.warning(f"❌ {attempt_name} failed: {str(attempt_error)}")
                 continue
         
-        # If all direct connections fail, use Supabase REST API fallback
-        logger.warning("All direct PostgreSQL connections failed. Using Supabase REST API fallback for chat.")
-        global _use_supabase_fallback, _supabase_db_service
-        _use_supabase_fallback = True
-        _supabase_db_service = DatabaseService()
+        # If all attempts failed, raise the last error
+        raise Exception("All database connection attempts failed")
         
-        # Create a mock SQLDatabase object that uses Supabase REST API
-        _db = SupabaseSQLDatabase()
-        logger.info("Supabase REST API fallback initialized for chat functionality")
-    
-    return _db
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed completely: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
 
-def get_agent():
-    """Get or create SQL agent"""
-    global _agent_executor, _use_supabase_fallback
-    if _agent_executor is None:
+def get_agent_executor():
+    """Get or create the SQL agent executor"""
+    global _agent_executor
+    
+    if _agent_executor is not None:
+        return _agent_executor
+    
+    try:
         settings = get_settings()
-        db = get_database()
         
-        # Initialize LLM
-        model_name = settings.openai_model
-        if model_name == "gpt-4":
-            model_name = "gpt-4o"  # Use gpt-4o as specified
-        
+        # Initialize OpenAI LLM
         llm = ChatOpenAI(
-            model=model_name,
-            temperature=settings.openai_temperature,
-            openai_api_key=settings.openai_api_key
+            api_key=settings.openai_api_key,
+            model=settings.openai_model,
+            temperature=settings.openai_temperature
         )
         
+        # Get database connection
+        db = get_database()
+        
+        # Check if we're using Supabase fallback
         if _use_supabase_fallback:
-            # For Supabase fallback, create a simple agent without SQL toolkit
-            logger.info("Creating Supabase fallback agent")
+            logger.info("🔄 Using Supabase REST API agent (no direct SQL)")
             _agent_executor = SupabaseChatAgent(llm, db)
         else:
-            # Create SQL agent directly (newer syntax) for direct PostgreSQL
+            logger.info("🔄 Using standard LangChain SQL agent")
+            # Create SQL agent with standard LangChain
+            toolkit = SQLDatabaseToolkit(db=db, llm=llm)
             _agent_executor = create_sql_agent(
                 llm=llm,
-                db=db,
+                toolkit=toolkit,
+                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
                 verbose=True,
-                agent_type=AgentType.OPENAI_FUNCTIONS,
-                max_iterations=5
+                handle_parsing_errors=True
             )
         
-        logger.info("SQL agent initialized")
-    
-    return _agent_executor
+        return _agent_executor
+        
+    except Exception as e:
+        logger.error(f"❌ Agent initialization failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Agent initialization failed: {str(e)}")
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_with_data(request: ChatRequest, authorization: str = Header(None), settings=Depends(get_settings)):
+async def chat_with_data(request: ChatRequest, authorization: str = Header(None)):
     """
     Enhanced chat endpoint with proper user authentication and debug mode
     """
-    try:
-        # Extract user ID from JWT token
-        from app.services.auth_service import AuthService
-        
-        user_id = None
-        user_email = None
-        
-        if authorization and authorization.startswith("Bearer "):
-            try:
-                token = authorization.replace("Bearer ", "")
-                auth_service = AuthService()
-                user_info = await auth_service.verify_token(token)
+    # Extract user ID from JWT token - OUTSIDE main try block so 401 errors propagate properly
+    user_info = None
+    user_id = None
+    
+    if authorization:
+        try:
+            from app.services.auth_service import AuthService
+            auth_service = AuthService()
+            token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+            user_info = await auth_service.verify_token(token)
+            
+            # Extract user ID from JWT payload
+            if user_info and user_info.get('id'):
+                user_id = user_info.get('id')
+                logger.info(f"🔐 Authenticated user: {user_id}")
+            else:
+                logger.warning("⚠️ JWT token valid but no user ID found")
                 
-                if user_info and user_info.get('user_found'):
-                    user_id = user_info.get('user_id')
-                    user_email = user_info.get('user_email')
-                    logger.info(f"✅ User authenticated: {user_email} (ID: {user_id})")
-                else:
-                    logger.warning("❌ Token verification failed")
-            except Exception as auth_error:
-                logger.error(f"❌ Authentication error: {str(auth_error)}")
-        else:
-            logger.warning("❌ No Authorization header provided")
+        except Exception as auth_error:
+            logger.error(f"❌ Authentication failed: {str(auth_error)}")
+            raise HTTPException(status_code=401, detail="Authentication failed")
+    else:
+        logger.warning("⚠️ No authorization header provided - using anonymous mode")
+    
+    # Main chat processing
+    try:
+        logger.info(f"🤖 Processing chat request: '{request.message}' for user: {user_id or 'anonymous'}")
         
-        logger.info(f"Processing chat request: {request.message}")
-        if user_id:
-            logger.info(f"👤 Authenticated User: {user_email} (ID: {user_id})")
-        else:
-            logger.warning("⚠️ No user ID available - using fallback data access")
-        
-        # Get the SQL agent
-        agent = get_agent()
+        # Get agent
+        agent = get_agent_executor()
         
         # Enhanced input with user context
         enhanced_input = {
@@ -541,11 +768,11 @@ async def chat_with_data(request: ChatRequest, authorization: str = Header(None)
 
 @router.get("/chat/health")
 async def chat_health():
-    """Health check for chat service"""
+    """Health check endpoint for chat functionality"""
     try:
         db = get_database()
         # Test database connection
         result = db.run("SELECT 1")
-        return {"status": "healthy", "database": "connected"}
+        return {"status": "healthy", "database": "connected", "test_result": result}
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}

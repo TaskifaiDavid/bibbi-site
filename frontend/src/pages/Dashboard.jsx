@@ -19,43 +19,44 @@ function Dashboard({ user, onLogout }) {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>BIBBI</h1>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h1>BIBBI</h1>
+          <nav className="dashboard-nav">
+            <button
+              className={activeView === 'upload' ? 'active' : ''}
+              onClick={() => setActiveView('upload')}
+            >
+              Upload Files
+            </button>
+            <button
+              className={activeView === 'status' ? 'active' : ''}
+              onClick={() => setActiveView('status')}
+            >
+              Processing Status
+            </button>
+            <button
+              className={activeView === 'analytics' ? 'active' : ''}
+              onClick={() => setActiveView('analytics')}
+            >
+              Analytics
+            </button>
+            <button
+              className={activeView === 'chat' ? 'active' : ''}
+              onClick={() => setActiveView('chat')}
+            >
+              Data Chat
+            </button>
+          </nav>
+        </div>
         <div className="user-info">
           <span>{user?.email || 'Unknown User'}</span>
-          <button onClick={handleLogout} className="logout-btn btn-secondary">
+          <button onClick={handleLogout} className="logout-btn">
             Logout
           </button>
         </div>
       </header>
 
       <div className="dashboard-main">
-        <nav className="dashboard-nav">
-          <button
-            className={activeView === 'upload' ? 'active' : ''}
-            onClick={() => setActiveView('upload')}
-          >
-            Upload Files
-          </button>
-          <button
-            className={activeView === 'status' ? 'active' : ''}
-            onClick={() => setActiveView('status')}
-          >
-            Processing Status
-          </button>
-          <button
-            className={activeView === 'analytics' ? 'active' : ''}
-            onClick={() => setActiveView('analytics')}
-          >
-            Analytics
-          </button>
-          <button
-            className={activeView === 'chat' ? 'active' : ''}
-            onClick={() => setActiveView('chat')}
-          >
-            Data Chat
-          </button>
-        </nav>
-
         <main className="dashboard-content">
         {activeView === 'upload' ? (
           <Upload />

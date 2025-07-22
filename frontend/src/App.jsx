@@ -27,8 +27,8 @@ function App() {
       }
 
       console.log('🔗 Validating token with backend...')
-      // Validate token with backend
-      const response = await fetch('http://localhost:8000/api/auth/debug-token', {
+      // Validate token with backend using status endpoint which requires auth
+      const response = await fetch('http://localhost:8000/api/status/uploads', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -38,21 +38,23 @@ function App() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
-      const debugInfo = await response.json()
-      console.log('✅ Auth debug response:', debugInfo)
-
-      if (debugInfo.user_found) {
-        console.log('✅ User authenticated successfully')
-        setIsAuthenticated(true)
+      // If we can fetch uploads, the token is valid
+      const uploads = await response.json()
+      console.log('✅ Auth validation successful, got uploads:', uploads.length)
+      
+      console.log('✅ User authenticated successfully')
+      setIsAuthenticated(true)
+      
+      // Extract user info from token (basic decode for display)
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]))
         setUser({
-          email: debugInfo.user_email,
-          id: debugInfo.user_id
+          email: tokenPayload.email,
+          id: tokenPayload.sub
         })
-      } else {
-        console.log('❌ Token invalid, clearing authentication')
-        // Invalid token, clear it
-        localStorage.removeItem('access_token')
-        setIsAuthenticated(false)
+      } catch (e) {
+        console.warn('Could not parse token payload:', e)
+        setUser({ email: 'Unknown', id: 'Unknown' })
       }
     } catch (error) {
       console.error('❌ Auth check failed:', error)

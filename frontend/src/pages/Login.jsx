@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Eye, EyeOff, Mail, Lock, Database } from 'lucide-react'
 import apiService from '../services/api'
 
 function Login({ onLoginSuccess }) {
@@ -6,6 +7,7 @@ function Login({ onLoginSuccess }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -62,40 +64,69 @@ function Login({ onLoginSuccess }) {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h1>BIBBI</h1>
-        <h2>Admin Portal</h2>
+        <div className="login-header">
+          <div className="logo-container">
+            <Database size={32} className="logo-icon" />
+            <h1>BIBBI</h1>
+          </div>
+          <p className="subtitle">Data Analytics Platform</p>
+        </div>
         
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleLogin} className="login-form">
           <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="Enter your email"
-            />
+            <label htmlFor="email">Email Address</label>
+            <div className="input-container">
+              <Mail size={16} className="input-icon" />
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="Enter your email address"
+                className="input-with-icon"
+              />
+            </div>
           </div>
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Enter your password"
-            />
+            <div className="input-container">
+              <Lock size={16} className="input-icon" />
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Enter your password"
+                className="input-with-icon input-with-action"
+              />
+              <button
+                type="button"
+                className="input-action-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
-          {error && <div className="error">{error}</div>}
+          {error && (
+            <div className="error-message">
+              <span>{error}</span>
+            </div>
+          )}
 
-          <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? 'Logging in...' : 'Login'}
+          <button type="submit" disabled={loading} className="btn-primary login-btn">
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+        
+        <div className="login-footer">
+          <p>Secure access to your data analytics dashboard</p>
+        </div>
       </div>
     </div>
   )

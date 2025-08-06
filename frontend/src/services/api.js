@@ -232,9 +232,19 @@ class ApiService {
   }
 
   async deleteDashboardConfig(configId) {
-    return this.request(`/api/dashboards/configs/${configId}`, {
+    console.log('🗑️ API SERVICE: Starting dashboard deletion request')
+    console.log('🗑️ API SERVICE: Config ID:', configId)
+    
+    const result = await this.request(`/api/dashboards/configs/${configId}`, {
       method: 'DELETE',
     })
+    
+    console.log('🗑️ API SERVICE: Delete request response:', result)
+    console.log('🗑️ API SERVICE: Delete success:', result?.success)
+    console.log('🗑️ API SERVICE: Delete message:', result?.message)
+    console.log('🗑️ API SERVICE: Deleted ID:', result?.deleted_id)
+    
+    return result
   }
 }
 

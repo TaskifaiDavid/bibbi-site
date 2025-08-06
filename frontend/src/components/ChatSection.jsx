@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { MessageSquare, Send, Copy, Trash2, User, Bot, Lightbulb, Sparkles } from 'lucide-react'
 
 const ChatSection = () => {
   const [messages, setMessages] = useState([])
@@ -63,7 +64,47 @@ const ChatSection = () => {
       }
 
       const data = await response.json()
-      const aiMessage = { type: 'ai', content: data.answer, timestamp: new Date() }
+      console.log('🤖 Chat API Response:', data) // Debug the full response structure
+      
+      // Show full response including any breakdown or detailed analysis
+      let fullContent = data.answer || data.response || ''
+      
+      // If there are additional details in the response, include them
+      if (data.analysis) {
+        fullContent += '\n\n--- Analysis ---\n' + data.analysis
+      }
+      if (data.breakdown) {
+        fullContent += '\n\n--- Breakdown ---\n' + data.breakdown
+      }
+      if (data.reasoning) {
+        fullContent += '\n\n--- Reasoning ---\n' + data.reasoning
+      }
+      if (data.details) {
+        fullContent += '\n\n--- Details ---\n' + data.details
+      }
+      if (data.sql_query) {
+        fullContent += '\n\n--- SQL Query ---\n' + data.sql_query
+      }
+      if (data.query_explanation) {
+        fullContent += '\n\n--- Query Explanation ---\n' + data.query_explanation
+      }
+      if (data.data_insights) {
+        fullContent += '\n\n--- Data Insights ---\n' + data.data_insights
+      }
+      
+      // If we still only have the basic answer, try to show all available fields
+      if (fullContent === (data.answer || data.response || '')) {
+        const additionalFields = Object.keys(data).filter(key => 
+          key !== 'answer' && key !== 'response' && key !== 'status' && 
+          typeof data[key] === 'string' && data[key].length > 0
+        )
+        
+        for (const field of additionalFields) {
+          fullContent += `\n\n--- ${field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ')} ---\n` + data[field]
+        }
+      }
+      
+      const aiMessage = { type: 'ai', content: fullContent, timestamp: new Date() }
       setMessages(prev => [...prev, aiMessage])
     } catch (error) {
       console.error('Chat error:', error)
@@ -106,27 +147,46 @@ const ChatSection = () => {
     <div className="chat-section">
       <div className="chat-header">
         <div className="header-content">
-          <h2>💬 Data Chat</h2>
-          <p>Ask questions about your sales data and get AI-powered insights</p>
+          <div className="header-title">
+            <MessageSquare size={24} className="header-icon" />
+            <div>
+              <h2>Data Chat</h2>
+              <p>Ask questions about your sales data and get AI-powered insights</p>
+            </div>
+          </div>
         </div>
         <div className="chat-actions">
-          <button onClick={clearChat} className="btn-secondary" disabled={messages.length === 0}>
-            Clear Chat
+          <button 
+            onClick={clearChat} 
+            className="clear-btn" 
+            disabled={messages.length === 0}
+            title="Clear conversation"
+          >
+            <Trash2 size={16} />
+            <span>Clear Chat</span>
           </button>
         </div>
       </div>
 
       <div className="chat-container">
-        <div className="chat-messages">
+        <div className="chat-messages" style={{height: '100%', overflowY: 'auto', maxHeight: 'calc(100vh - 300px)'}}>
           {messages.length === 0 && (
             <div className="welcome-section">
               <div className="welcome-message">
-                <h3>👋 Welcome to Data Chat!</h3>
-                <p>I can help you analyze your sales data. Here are some questions you can ask:</p>
+                <div className="welcome-header">
+                  <Sparkles size={32} className="welcome-icon" />
+                  <div>
+                    <h3>Welcome!</h3>
+                    <p>I can help you analyze your sales data and provide insights</p>
+                  </div>
+                </div>
               </div>
               
               <div className="sample-questions">
-                <h4>Sample Questions:</h4>
+                <div className="questions-header">
+                  <Lightbulb size={20} />
+                  <h4>Try asking:</h4>
+                </div>
                 <div className="question-grid">
                   {sampleQuestions.map((question, index) => (
                     <button
@@ -134,7 +194,7 @@ const ChatSection = () => {
                       className="sample-question"
                       onClick={() => setInputMessage(question)}
                     >
-                      {question}
+                      <span className="question-text">{question}</span>
                     </button>
                   ))}
                 </div>
@@ -144,40 +204,61 @@ const ChatSection = () => {
           
           {messages.map((message, index) => (
             <div key={index} className={`message ${message.type}`}>
-              <div className="message-header">
-                <span className="message-sender">
-                  {message.type === 'user' ? '👤 You' : '🤖 AI Assistant'}
-                </span>
-                <span className="message-time">
-                  {message.timestamp?.toLocaleTimeString()}
-                </span>
-              </div>
-              <div className="message-content">
-                <pre>{message.content}</pre>
-                {message.type === 'ai' && (
-                  <button 
-                    className="copy-btn"
-                    onClick={() => copyMessage(message.content)}
-                    title="Copy response"
-                  >
-                    📋
-                  </button>
+              <div className="message-avatar">
+                {message.type === 'user' ? (
+                  <User size={20} />
+                ) : (
+                  <Bot size={20} />
                 )}
+              </div>
+              <div className="message-body">
+                <div className="message-header">
+                  <span className="message-sender">
+                    {message.type === 'user' ? 'You' : 'AI Assistant'}
+                  </span>
+                  <span className="message-time">
+                    {message.timestamp?.toLocaleTimeString()}
+                  </span>
+                </div>
+                <div className="message-content">
+                  <div className="message-text">
+                    {message.content.split('\n').map((line, index) => (
+                      <div key={index} className="message-line">
+                        {line.startsWith('---') ? (
+                          <div className="section-divider">
+                            <span className="section-title">{line.replace(/---/g, '').trim()}</span>
+                          </div>
+                        ) : line.trim() ? (
+                          <p>{line}</p>
+                        ) : (
+                          <br />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {message.type === 'ai' && !isLoading && (
+                    <button 
+                      className="copy-btn"
+                      onClick={() => copyMessage(message.content)}
+                      title="Copy response"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
           
           {isLoading && (
-            <div className="message ai">
-              <div className="message-header">
-                <span className="message-sender">🤖 AI Assistant</span>
-                <span className="message-time">Thinking...</span>
-              </div>
-              <div className="message-content loading">
-                <div className="loading-animation">
-                  <span>Thinking</span>
-                  <div className="loading-dots">
-                    <span>.</span><span>.</span><span>.</span>
+            <div className="analyzing-container">
+              <div className="analyzing-indicator">
+                <div className="analyzing-text">
+                  <span className="analyzing-message">Analyzing your request...</span>
+                  <div className="analyzing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
                   </div>
                 </div>
               </div>
@@ -192,18 +273,22 @@ const ChatSection = () => {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask a question about your sales data... (Press Enter to send, Shift+Enter for new line)"
+              placeholder="Ask a question about your sales data..."
               disabled={isLoading}
-              rows={3}
+              rows={1}
               className="chat-input"
             />
             <button 
               onClick={sendMessage} 
               disabled={isLoading || !inputMessage.trim()}
               className="send-btn"
+              title="Send message"
             >
-              {isLoading ? '⏳' : '📤'} Send
+              <Send size={18} />
             </button>
+          </div>
+          <div className="input-hint">
+            <span>Press Enter to send • Shift+Enter for new line</span>
           </div>
         </div>
       </div>

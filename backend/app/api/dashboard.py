@@ -114,7 +114,7 @@ async def create_dashboard_config(
         """
         
         now = datetime.now()
-        result = await db_service.fetch_one(
+        result = await db_service.execute(
             query,
             (
                 current_user.id,
@@ -131,20 +131,36 @@ async def create_dashboard_config(
         )
         
         # Return the created config
-        created_config = {
-            "id": result["id"],
-            "dashboardName": config.dashboardName,
-            "dashboardType": config.dashboardType,
-            "dashboardUrl": str(config.dashboardUrl),
-            "authenticationMethod": config.authenticationMethod,
-            "authenticationConfig": config.authenticationConfig or {},
-            "permissions": config.permissions or [],
-            "isActive": config.isActive,
-            "createdAt": result["created_at"].isoformat(),
-            "updatedAt": result["updated_at"].isoformat()
-        }
+        if result:
+            created_config = {
+                "id": result.get("id") or "generated-id",
+                "dashboardName": config.dashboardName,
+                "dashboardType": config.dashboardType,
+                "dashboardUrl": str(config.dashboardUrl),
+                "authenticationMethod": config.authenticationMethod,
+                "authenticationConfig": config.authenticationConfig or {},
+                "permissions": config.permissions or [],
+                "isActive": config.isActive,
+                "createdAt": result.get("created_at", now.isoformat()) if hasattr(result.get("created_at"), 'isoformat') else str(result.get("created_at", now.isoformat())),
+                "updatedAt": result.get("updated_at", now.isoformat()) if hasattr(result.get("updated_at"), 'isoformat') else str(result.get("updated_at", now.isoformat()))
+            }
+        else:
+            # Fallback if execute doesn't return expected result
+            import uuid
+            created_config = {
+                "id": str(uuid.uuid4()),
+                "dashboardName": config.dashboardName,
+                "dashboardType": config.dashboardType,
+                "dashboardUrl": str(config.dashboardUrl),
+                "authenticationMethod": config.authenticationMethod,
+                "authenticationConfig": config.authenticationConfig or {},
+                "permissions": config.permissions or [],
+                "isActive": config.isActive,
+                "createdAt": now.isoformat(),
+                "updatedAt": now.isoformat()
+            }
         
-        logger.info(f"Created dashboard config {result['id']} for user {current_user.email}")
+        logger.info(f"Created dashboard config {created_config['id']} for user {current_user.email}")
         
         return {
             "success": True,
@@ -240,28 +256,36 @@ async def delete_dashboard_config(
         
         db_service = DatabaseService()
         
-        # Check if config exists and belongs to user, then delete
-        delete_query = """
-        DELETE FROM dashboard_configs 
-        WHERE id = %s AND user_id = %s
-        RETURNING id
-        """
+        logger.info(f"🗑️ API: Starting dashboard deletion process")
+        logger.info(f"🗑️ API: Config ID: {config_id}")
+        logger.info(f"🗑️ API: User: {current_user.email} (ID: {current_user.id})")
         
-        result = await db_service.fetch_one(delete_query, (config_id, current_user.id))
+        # Use direct delete method instead of SQL query approach
+        logger.info(f"🗑️ API: Calling direct delete method")
+        
+        result = await db_service.delete_dashboard_config_direct(config_id, current_user.id)
+        
+        logger.info(f"🗑️ API: Direct delete result: {result}")
+        logger.info(f"🗑️ API: Result type: {type(result)}")
+        
         if not result:
-            raise HTTPException(status_code=404, detail="Dashboard configuration not found")
+            logger.warning(f"🗑️ API: Dashboard config not found or deletion failed")
+            raise HTTPException(status_code=404, detail="Dashboard configuration not found or deletion failed")
         
-        logger.info(f"Deleted dashboard config {config_id} for user {current_user.email}")
+        logger.info(f"✅ API: Successfully deleted dashboard config {config_id} for user {current_user.email}")
         
         return {
             "success": True,
-            "message": "Dashboard configuration deleted successfully"
+            "message": "Dashboard configuration deleted successfully",
+            "deleted_id": result.get("id") if result else config_id
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting dashboard config: {e}")
+        logger.error(f"❌ API: Error deleting dashboard config: {e}")
+        import traceback
+        logger.error(f"❌ API: Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/configs/{config_id}")

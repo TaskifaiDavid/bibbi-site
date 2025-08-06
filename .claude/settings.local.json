@@ -24,7 +24,11 @@
       "Bash(git branch:*)",
       "Bash(npm run lint)",
       "Bash(npm run:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.digitalocean.com)",
+      "Bash(mv:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

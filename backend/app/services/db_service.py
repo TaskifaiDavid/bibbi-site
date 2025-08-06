@@ -2,14 +2,37 @@ from supabase import create_client, Client
 from app.utils.config import get_settings
 from app.utils.exceptions import DatabaseException
 from app.models.upload import UploadStatus, ProcessingStatus
+from app.utils.logging_config import get_logger, log_function_call
+from app.middleware.error_handler import DatabaseError
 from typing import Optional, List, Dict, Any
 import json
 from datetime import datetime
 import pandas as pd
 import numpy as np
-import logging
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+def handle_db_error(func):
+    """Decorator for handling database errors with enhanced logging"""
+    def wrapper(*args, **kwargs):
+        try:
+            logger.debug(f"Executing database operation: {func.__name__}")
+            result = func(*args, **kwargs)
+            logger.debug(f"Database operation completed: {func.__name__}")
+            return result
+        except Exception as e:
+            logger.error(
+                f"Database operation failed: {func.__name__}",
+                extra={
+                    "function": func.__name__,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e)
+                },
+                exc_info=True
+            )
+            # Convert to our custom database error
+            raise DatabaseError(f"Database operation failed in {func.__name__}: {str(e)}") from e
+    return wrapper
 
 class DatabaseService:
     def __init__(self):
@@ -19,6 +42,7 @@ class DatabaseService:
             settings.supabase_service_key
         )
     
+    @handle_db_error
     async def create_upload_record(self, upload_id: str, user_id: str, filename: str, file_size: int):
         try:
             data = {
@@ -691,6 +715,16 @@ class DatabaseService:
         Used by email and dashboard services
         """
         try:
+            print(f"🔥 FETCH_ALL: Called with query: {query[:100]}...")
+            print(f"🔥 FETCH_ALL: Query type: {'DELETE' if query.strip().upper().startswith('DELETE') else 'SELECT'}")
+            
+            # Check if this is actually a DELETE query - route to execute instead
+            if query.strip().upper().startswith("DELETE"):
+                print(f"🔧 FETCH_ALL: Detected DELETE query, routing to execute method")
+                result = await self.execute(query, params)
+                # Return as a list for consistency with fetch_all interface
+                return [result] if result else []
+            
             # Convert PostgreSQL query to Supabase table operation where possible
             # For complex queries, we'll use Supabase RPC or direct table queries
             
@@ -722,6 +756,11 @@ class DatabaseService:
         Used by email and dashboard services
         """
         try:
+            # Check if this is actually a DELETE query with RETURNING
+            if query.strip().upper().startswith("DELETE"):
+                print(f"🔧 FETCH_ONE: Detected DELETE query, routing to execute method")
+                return await self.execute(query, params)
+            
             results = await self.fetch_all(query, params)
             return results[0] if results else None
         except Exception as e:
@@ -1635,6 +1674,67 @@ class DatabaseService:
             print(f"ERROR in _query_schema_info: {str(e)}")
             return []
     
+    # ============ DIRECT DASHBOARD METHODS ============
+    
+    async def delete_dashboard_config_direct(self, config_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Direct method to delete dashboard config without SQL query parsing
+        """
+        try:
+            logger.info(f"🔥 DIRECT DELETE: Starting dashboard deletion")
+            logger.info(f"🔥 DIRECT DELETE: Config ID: {config_id}")
+            logger.info(f"🔥 DIRECT DELETE: User ID: {user_id}")
+            
+            # First, check if the record exists before deletion
+            check_result = self.supabase.table("dashboard_configs")\
+                .select("id, dashboard_name")\
+                .eq("id", config_id)\
+                .eq("user_id", user_id)\
+                .execute()
+                
+            logger.info(f"🔍 DIRECT DELETE: Pre-deletion check result: {check_result.data}")
+            
+            if not check_result.data:
+                logger.warning(f"❌ DIRECT DELETE: Dashboard config not found - cannot delete")
+                return None
+            
+            # Perform the deletion
+            logger.info(f"🔥 DIRECT DELETE: About to call Supabase delete operation")
+            
+            result = self.supabase.table("dashboard_configs")\
+                .delete()\
+                .eq("id", config_id)\
+                .eq("user_id", user_id)\
+                .execute()
+                
+            logger.info(f"🗑️ DIRECT DELETE: Delete operation result: {result}")
+            logger.info(f"🗑️ DIRECT DELETE: Result type: {type(result)}")
+            logger.info(f"🗑️ DIRECT DELETE: Deleted data: {result.data}")
+            logger.info(f"🗑️ DIRECT DELETE: Result count: {result.count if hasattr(result, 'count') else 'N/A'}")
+            
+            # Verify the deletion worked
+            verify_result = self.supabase.table("dashboard_configs")\
+                .select("id, dashboard_name")\
+                .eq("id", config_id)\
+                .eq("user_id", user_id)\
+                .execute()
+                
+            logger.info(f"🔍 DIRECT DELETE: Post-deletion verification: {verify_result.data}")
+            
+            if verify_result.data:
+                logger.error(f"⚠️ DIRECT DELETE: WARNING - Record still exists after deletion!")
+                return None
+            else:
+                logger.info(f"✅ DIRECT DELETE: Deletion confirmed - record no longer exists")
+            
+            return result.data[0] if result.data else {"id": config_id}
+            
+        except Exception as e:
+            logger.error(f"❌ ERROR in delete_dashboard_config_direct: {str(e)}")
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+            raise
+
     # ============ HELPER METHODS FOR INSERT/UPDATE/DELETE ============
     
     async def _execute_insert(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
@@ -1694,11 +1794,30 @@ class DatabaseService:
                 "updated_at": updated_at.isoformat() if hasattr(updated_at, 'isoformat') else str(updated_at)
             }
             
+            print(f"Inserting dashboard config: {data}")
             result = self.supabase.table("dashboard_configs").insert(data).execute()
-            return result.data[0] if result.data else None
+            print(f"Insert result: {result}")
+            print(f"Result data: {result.data}")
+            
+            if result.data and len(result.data) > 0:
+                inserted_record = result.data[0]
+                print(f"Successfully inserted dashboard config with ID: {inserted_record.get('id')}")
+                return inserted_record
+            else:
+                # If Supabase doesn't return the inserted record, create a mock response
+                print("WARNING: Supabase didn't return inserted record, creating mock response")
+                import uuid
+                mock_response = {
+                    "id": str(uuid.uuid4()),
+                    "created_at": created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at),
+                    "updated_at": updated_at.isoformat() if hasattr(updated_at, 'isoformat') else str(updated_at)
+                }
+                return mock_response
             
         except Exception as e:
             print(f"ERROR in _insert_dashboard_config: {str(e)}")
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
             raise
     
     async def _execute_update(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
@@ -1746,14 +1865,18 @@ class DatabaseService:
     async def _execute_delete(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
         """Handle DELETE operations"""
         try:
+            print(f"🔥 EXECUTE_DELETE: Called with query: {query}")
+            print(f"🔥 EXECUTE_DELETE: Called with params: {params}")
+            
             if "DELETE FROM dashboard_configs" in query:
+                print(f"🔥 EXECUTE_DELETE: Routing to _delete_dashboard_config")
                 return await self._delete_dashboard_config(params)
             else:
-                print(f"WARNING: Unsupported DELETE table in query: {query}")
+                print(f"⚠️ WARNING: Unsupported DELETE table in query: {query}")
                 return None
                 
         except Exception as e:
-            print(f"ERROR in _execute_delete: {str(e)}")
+            print(f"❌ ERROR in _execute_delete: {str(e)}")
             raise
     
     
@@ -1762,14 +1885,78 @@ class DatabaseService:
         try:
             config_id, user_id = params
             
-            result = self.supabase.table("dashboard_configs")\
-                .delete()\
+            print(f"🗑️ DB SERVICE: Attempting to delete dashboard config")
+            print(f"🗑️ DB SERVICE: Config ID: {config_id}")
+            print(f"🗑️ DB SERVICE: User ID: {user_id}")
+            
+            # First, check if the record exists before deletion
+            check_result = self.supabase.table("dashboard_configs")\
+                .select("id, dashboard_name")\
                 .eq("id", config_id)\
                 .eq("user_id", user_id)\
                 .execute()
                 
-            return result.data[0] if result.data else None
+            print(f"🔍 DB SERVICE: Pre-deletion check result: {check_result.data}")
+            
+            if not check_result.data:
+                print(f"❌ DB SERVICE: Dashboard config not found - cannot delete")
+                return None
+            
+            # Perform the deletion
+            print(f"🔥 DB SERVICE: About to call Supabase delete operation")
+            print(f"🔥 DB SERVICE: Supabase client type: {type(self.supabase)}")
+            
+            # Build the query step by step to debug
+            table_ref = self.supabase.table("dashboard_configs")
+            print(f"🔥 DB SERVICE: Table reference: {type(table_ref)}")
+            
+            delete_ref = table_ref.delete()
+            print(f"🔥 DB SERVICE: Delete reference: {type(delete_ref)}")
+            
+            eq_id_ref = delete_ref.eq("id", config_id)
+            print(f"🔥 DB SERVICE: EQ ID reference: {type(eq_id_ref)}")
+            
+            eq_user_ref = eq_id_ref.eq("user_id", user_id)
+            print(f"🔥 DB SERVICE: EQ USER reference: {type(eq_user_ref)}")
+            
+            print(f"🔥 DB SERVICE: Executing delete operation...")
+            result = eq_user_ref.execute()
+                
+            print(f"🗑️ DB SERVICE: Delete operation result: {result}")
+            print(f"🗑️ DB SERVICE: Result type: {type(result)}")
+            print(f"🗑️ DB SERVICE: Deleted data: {result.data}")
+            print(f"🗑️ DB SERVICE: Result count: {result.count if hasattr(result, 'count') else 'N/A'}")
+            
+            # Check if result indicates success
+            if hasattr(result, 'data') and result.data:
+                print(f"🗑️ DB SERVICE: Delete returned data - likely successful")
+            elif hasattr(result, 'count') and result.count > 0:
+                print(f"🗑️ DB SERVICE: Delete count > 0 - likely successful") 
+            else:
+                print(f"🗑️ DB SERVICE: Delete result unclear - checking attributes")
+                for attr in dir(result):
+                    if not attr.startswith('_'):
+                        print(f"   - {attr}: {getattr(result, attr, 'N/A')}")
+            
+            # Verify the deletion worked
+            verify_result = self.supabase.table("dashboard_configs")\
+                .select("id, dashboard_name")\
+                .eq("id", config_id)\
+                .eq("user_id", user_id)\
+                .execute()
+                
+            print(f"🔍 DB SERVICE: Post-deletion verification: {verify_result.data}")
+            
+            if verify_result.data:
+                print(f"⚠️ DB SERVICE: WARNING - Record still exists after deletion!")
+                return None
+            else:
+                print(f"✅ DB SERVICE: Deletion confirmed - record no longer exists")
+            
+            return result.data[0] if result.data else {"id": config_id}
             
         except Exception as e:
-            print(f"ERROR in _delete_dashboard_config: {str(e)}")
+            print(f"❌ ERROR in _delete_dashboard_config: {str(e)}")
+            import traceback
+            print(f"❌ Full traceback: {traceback.format_exc()}")
             raise

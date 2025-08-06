@@ -5,13 +5,107 @@ from langchain_community.agent_toolkits import SQLDatabaseToolkit
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits.sql.base import create_sql_agent
 from langchain.agents import AgentType
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.schema import BaseMessage, HumanMessage, AIMessage
 from app.utils.config import get_settings
 from app.services.db_service import DatabaseService
 import logging
 import os
+import json
+from typing import List, Dict, Optional
+from datetime import datetime
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
+
+class ConversationMemoryService:
+    """Enhanced conversation memory service with persistence"""
+    
+    def __init__(self):
+        self.db_service = DatabaseService()
+        self.memory_cache = {}  # In-memory cache for active conversations
+    
+    def get_conversation_memory(self, user_id: str, session_id: Optional[str] = None) -> ConversationBufferWindowMemory:
+        """Get or create conversation memory for a user"""
+        cache_key = f"{user_id}_{session_id or 'default'}"
+        
+        if cache_key not in self.memory_cache:
+            # Create new memory with window size of 10 messages (5 exchanges)
+            memory = ConversationBufferWindowMemory(
+                k=10,
+                return_messages=True,
+                memory_key="chat_history"
+            )
+            
+            # Load existing conversation history from database
+            history = self._load_conversation_history(user_id, session_id)
+            if history:
+                for msg in history:
+                    if msg['type'] == 'human':
+                        memory.chat_memory.add_user_message(msg['content'])
+                    else:
+                        memory.chat_memory.add_ai_message(msg['content'])
+            
+            self.memory_cache[cache_key] = memory
+        
+        return self.memory_cache[cache_key]
+    
+    def save_conversation_turn(self, user_id: str, user_message: str, ai_response: str, session_id: Optional[str] = None):
+        """Save a conversation turn to the database"""
+        try:
+            conversation_data = {
+                'user_id': user_id,
+                'session_id': session_id or 'default',
+                'user_message': user_message,
+                'ai_response': ai_response,
+                'timestamp': datetime.utcnow().isoformat(),
+                'created_at': datetime.utcnow().isoformat()
+            }
+            
+            # Save to database (create conversation_history table if needed)
+            self.db_service.supabase.table("conversation_history").insert(conversation_data).execute()
+            logger.info(f"Saved conversation turn for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to save conversation turn: {e}")
+    
+    def _load_conversation_history(self, user_id: str, session_id: Optional[str] = None) -> List[Dict]:
+        """Load recent conversation history from database"""
+        try:
+            result = self.db_service.supabase.table("conversation_history")\
+                .select("user_message, ai_response, timestamp")\
+                .eq("user_id", user_id)\
+                .eq("session_id", session_id or 'default')\
+                .order("timestamp", desc=False)\
+                .limit(20)\
+                .execute()
+            
+            if result.data:
+                history = []
+                for row in result.data:
+                    history.append({'type': 'human', 'content': row['user_message']})
+                    history.append({'type': 'ai', 'content': row['ai_response']})
+                return history
+            return []
+        except Exception as e:
+            logger.warning(f"Failed to load conversation history: {e}")
+            return []
+    
+    def clear_conversation(self, user_id: str, session_id: Optional[str] = None):
+        """Clear conversation memory and history"""
+        cache_key = f"{user_id}_{session_id or 'default'}"
+        if cache_key in self.memory_cache:
+            del self.memory_cache[cache_key]
+        
+        try:
+            # Clear from database
+            self.db_service.supabase.table("conversation_history")\
+                .delete()\
+                .eq("user_id", user_id)\
+                .eq("session_id", session_id or 'default')\
+                .execute()
+            logger.info(f"Cleared conversation history for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to clear conversation history: {e}")
 
 class SupabaseSQLDatabase:
     """Mock SQLDatabase that uses Supabase REST API instead of direct PostgreSQL"""
@@ -99,26 +193,37 @@ class SupabaseSQLDatabase:
         return MockDialect()
 
 class SupabaseChatAgent:
-    """Enhanced chat agent that uses Supabase REST API for data queries with debug mode"""
+    """Enhanced chat agent that uses Supabase REST API for data queries with conversation memory"""
     
     def __init__(self, llm, db):
         self.llm = llm
         self.db = db
         self.db_service = DatabaseService()
+        self.memory_service = ConversationMemoryService()
         self.debug_mode = True  # Enable detailed logging
     
     def invoke(self, inputs):
-        """Process chat request using Supabase data with detailed debugging"""
+        """Process chat request using Supabase data with conversation memory"""
         try:
             user_message = inputs.get("input", "")
             user_id = inputs.get("user_id")  # Get user ID for filtering
+            session_id = inputs.get("session_id")  # Optional session ID for multiple conversations
             
             if self.debug_mode:
                 logger.info("=" * 50)
-                logger.info("🤖 CHAT DEBUG MODE ENABLED")
+                logger.info("🤖 ENHANCED CHAT WITH MEMORY")
                 logger.info(f"📝 User message: {user_message}")
                 logger.info(f"👤 User ID: {user_id}")
+                logger.info(f"🔗 Session ID: {session_id or 'default'}")
                 logger.info("=" * 50)
+            
+            # Get conversation memory for this user
+            memory = None
+            if user_id:
+                memory = self.memory_service.get_conversation_memory(user_id, session_id)
+                if self.debug_mode:
+                    chat_history = memory.chat_memory.messages if memory else []
+                    logger.info(f"💭 Loaded conversation history: {len(chat_history)} messages")
             
             # Get user-specific sales data with year filtering if mentioned
             if self.debug_mode:
@@ -237,12 +342,24 @@ class SupabaseChatAgent:
                     logger.info(f"📋 Data summary preview: {data_summary[:500]}...")
                     logger.info("🔍 Sending to LLM for analysis...")
                 
+                # Include conversation context in prompts
+                conversation_context = ""
+                if memory and memory.chat_memory.messages:
+                    recent_messages = memory.chat_memory.messages[-6:]  # Last 3 exchanges
+                    context_parts = []
+                    for msg in recent_messages:
+                        if isinstance(msg, HumanMessage):
+                            context_parts.append(f"User: {msg.content}")
+                        elif isinstance(msg, AIMessage):
+                            context_parts.append(f"Assistant: {msg.content[:200]}...")
+                    conversation_context = f"\n\nConversation Context (Recent):\n" + "\n".join(context_parts)
+
                 # Create specialized prompt for comparison queries
                 if intent == "COMPARISON":
                     prompt = f"""
-                    You are an expert sales data analyst. Based on the following sales data, perform a detailed comparison analysis.
+                    You are an expert sales data analyst with conversation memory. Based on the following sales data and conversation context, perform a detailed comparison analysis.
                     
-                    IMPORTANT: Only show the Conclusion you make with specific numbers and calculations.
+
                     
                     CRITICAL: When calculating totals, ALWAYS aggregate across ALL resellers and ALL records in the data. 
                     Do NOT focus on individual resellers unless the question specifically asks for a reseller breakdown.
@@ -250,24 +367,26 @@ class SupabaseChatAgent:
                     
                     Sales Data Summary:
                     {data_summary}
+                    {conversation_context}
                     
                     Question Intent: {intent}
-                    User Question: {user_message}
+                    Current User Question: {user_message}
                     
                     For COMPARISON queries, please:
-                    1. Extract the specific periods/products/entities being compared from the user question
-                    2. Use the DETAILED PERIOD-BY-PERIOD data provided above for accurate numbers
-                    3. Calculate exact differences and percentage changes using TOTAL aggregated amounts
-                    4. Provide clear before/after or A vs B comparison format with complete dataset totals
-                    5. Include business insights about the comparison across all sales channels
+                    1. Consider previous conversation context for better understanding
+                    2. Extract the specific periods/products/entities being compared from the current question
+                    3. Use the DETAILED PERIOD-BY-PERIOD data provided above for accurate numbers
+                    4. Calculate exact differences and percentage changes using TOTAL aggregated amounts
+                    5. Provide clear before/after or A vs B comparison format with complete dataset totals
+                    6. Include business insights about the comparison across all sales channels
                     
                     Instructions: Ensure all calculations represent the complete dataset across all resellers.
                     """
                 else:
                     prompt = f"""
-                    You are an expert sales data analyst. Based on the following sales data, answer the user's question with detailed analysis.
+                    You are an expert sales data analyst with conversation memory. Based on the following sales data and conversation context, answer the user's question with detailed analysis.
                     
-                    IMPORTANT: Only show the Conclusion you make.
+            
                     
                     CRITICAL: When calculating totals, ALWAYS aggregate across ALL resellers and ALL records in the data. 
                     Do NOT focus on individual resellers unless the question specifically asks for a reseller breakdown.
@@ -275,17 +394,20 @@ class SupabaseChatAgent:
                     
                     Sales Data Summary:
                     {data_summary}
+                    {conversation_context}
                     
                     Question Intent: {intent}
-                    User Question: {user_message}
+                    Current User Question: {user_message}
                     
                     Instructions:
-                1. Analyze the data carefully across ALL resellers and records
-                2. Provide specific numbers and calculations that represent the COMPLETE dataset
-                3. If grouping data (by reseller, product, time), show the breakdown only when specifically requested
-                4. For general questions, provide aggregated totals across all sales channels
-                5. Format numbers with currency symbols and proper formatting
-                6. If the data doesn't contain enough information, explain what's available and what's missing
+                1. Consider previous conversation context to provide continuity and better responses
+                2. Analyze the data carefully across ALL resellers and records
+                3. Provide specific numbers and calculations that represent the COMPLETE dataset
+                4. If grouping data (by reseller, product, time), show the breakdown only when specifically requested
+                5. For general questions, provide aggregated totals across all sales channels
+                6. Format numbers with currency symbols and proper formatting
+                7. If the data doesn't contain enough information, explain what's available and what's missing
+                8. Reference previous questions or answers when relevant
                 
                 Be thorough and analytical in your response, ensuring totals represent the entire dataset.
                 """
@@ -296,6 +418,17 @@ class SupabaseChatAgent:
                 if self.debug_mode:
                     logger.info(f"✅ LLM response generated: {len(response.content)} characters")
                     logger.info("=" * 50)
+                
+                # Save conversation turn to memory and database
+                if user_id and memory:
+                    memory.chat_memory.add_user_message(user_message)
+                    memory.chat_memory.add_ai_message(response.content)
+                    # Save to database asynchronously
+                    self.memory_service.save_conversation_turn(
+                        user_id, user_message, response.content, session_id
+                    )
+                    if self.debug_mode:
+                        logger.info("💾 Conversation turn saved to memory and database")
                 
                 return {"output": response.content}
             else:
@@ -599,9 +732,18 @@ class SupabaseChatAgent:
 
 class ChatRequest(BaseModel):
     message: str
+    session_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
     answer: str
+    session_id: Optional[str] = None
+
+class ConversationHistoryResponse(BaseModel):
+    conversations: List[Dict]
+    total_messages: int
+
+class ClearConversationRequest(BaseModel):
+    session_id: Optional[str] = None
 
 # Global variables to store DB connection and agent
 _db = None
@@ -738,10 +880,11 @@ async def chat_with_data(request: ChatRequest, authorization: str = Header(None)
         # Get agent
         agent = get_agent_executor()
         
-        # Enhanced input with user context
+        # Enhanced input with user context and session
         enhanced_input = {
             "input": request.message,
-            "user_id": user_id  # Pass user ID to agent for filtering
+            "user_id": user_id,  # Pass user ID to agent for filtering
+            "session_id": request.session_id  # Pass session ID for conversation memory
         }
         
         # Run the agent with user-specific context
@@ -755,7 +898,7 @@ async def chat_with_data(request: ChatRequest, authorization: str = Header(None)
             response = agent.run(request.message)
         
         logger.info(f"Agent response generated successfully: {len(response)} characters")
-        return ChatResponse(answer=response)
+        return ChatResponse(answer=response, session_id=request.session_id)
         
     except Exception as e:
         logger.error(f"Chat processing failed: {e}")
@@ -765,6 +908,93 @@ async def chat_with_data(request: ChatRequest, authorization: str = Header(None)
             status_code=500, 
             detail=f"Sorry, I couldn't process your question. Please try rephrasing it. Error: {str(e)}"
         )
+
+@router.get("/chat/history", response_model=ConversationHistoryResponse)
+async def get_conversation_history(authorization: str = Header(None)):
+    """Get conversation history for the authenticated user"""
+    # Extract user ID from JWT token
+    user_id = None
+    if authorization:
+        try:
+            from app.services.auth_service import AuthService
+            auth_service = AuthService()
+            token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+            user_info = await auth_service.verify_token(token)
+            
+            if user_info and user_info.get('id'):
+                user_id = user_info.get('id')
+            else:
+                raise HTTPException(status_code=401, detail="Invalid token")
+                
+        except Exception as auth_error:
+            logger.error(f"Authentication failed: {str(auth_error)}")
+            raise HTTPException(status_code=401, detail="Authentication failed")
+    else:
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    
+    try:
+        memory_service = ConversationMemoryService()
+        db_service = DatabaseService()
+        
+        # Get conversation history from database
+        result = db_service.supabase.table("conversation_history")\
+            .select("session_id, user_message, ai_response, timestamp")\
+            .eq("user_id", user_id)\
+            .order("timestamp", desc=True)\
+            .limit(100)\
+            .execute()
+        
+        conversations = []
+        if result.data:
+            for row in result.data:
+                conversations.append({
+                    "session_id": row["session_id"],
+                    "user_message": row["user_message"],
+                    "ai_response": row["ai_response"],
+                    "timestamp": row["timestamp"]
+                })
+        
+        return ConversationHistoryResponse(
+            conversations=conversations,
+            total_messages=len(conversations)
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to get conversation history: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve conversation history")
+
+@router.post("/chat/clear")
+async def clear_conversation(request: ClearConversationRequest, authorization: str = Header(None)):
+    """Clear conversation history for the authenticated user"""
+    # Extract user ID from JWT token
+    user_id = None
+    if authorization:
+        try:
+            from app.services.auth_service import AuthService
+            auth_service = AuthService()
+            token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+            user_info = await auth_service.verify_token(token)
+            
+            if user_info and user_info.get('id'):
+                user_id = user_info.get('id')
+            else:
+                raise HTTPException(status_code=401, detail="Invalid token")
+                
+        except Exception as auth_error:
+            logger.error(f"Authentication failed: {str(auth_error)}")
+            raise HTTPException(status_code=401, detail="Authentication failed")
+    else:
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    
+    try:
+        memory_service = ConversationMemoryService()
+        memory_service.clear_conversation(user_id, request.session_id)
+        
+        return {"message": "Conversation cleared successfully", "session_id": request.session_id}
+        
+    except Exception as e:
+        logger.error(f"Failed to clear conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear conversation")
 
 @router.get("/chat/health")
 async def chat_health():

@@ -74,7 +74,7 @@ class AuthService:
     
     async def verify_token(self, token: str) -> Optional[dict]:
         try:
-            self.logger.info(f"Attempting token verification for token ending with: ...{token[-4:]}")
+            self.logger.info("Attempting token verification")
             
             if not token:
                 self.logger.warning("Empty token provided for verification")
@@ -97,12 +97,9 @@ class AuthService:
                 return None
                 
         except Exception as e:
-            self.logger.error(f"Token verification error: {str(e)}")
-            self.logger.error(f"Token type: {type(token)}")
-            self.logger.error(f"Token length: {len(token) if token else 'None'}")
+            self.logger.error("Token verification error - details redacted for security")
             if hasattr(e, 'response'):
                 self.logger.error(f"Response status: {getattr(e.response, 'status_code', 'Unknown')}")
-                self.logger.error(f"Response text: {getattr(e.response, 'text', 'Unknown')}")
             return None
     
     async def logout(self, token: str) -> bool:

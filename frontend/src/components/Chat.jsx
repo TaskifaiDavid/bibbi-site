@@ -1,5 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react'
 
+// Simple XSS protection utility
+const sanitizeContent = (content) => {
+  if (typeof content !== 'string') return ''
+  
+  // Remove any HTML tags and decode entities for safety
+  const cleanContent = content
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+  
+  // Limit content length to prevent display issues
+  return cleanContent.length > 2000 ? cleanContent.substring(0, 2000) + '...' : cleanContent
+}
+
 const Chat = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState([])
@@ -18,7 +35,11 @@ const Chat = () => {
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return
 
-    const userMessage = { type: 'user', content: inputMessage }
+    // Sanitize user input before storing and sending
+    const cleanedInput = sanitizeContent(inputMessage.trim())
+    if (!cleanedInput) return
+
+    const userMessage = { type: 'user', content: cleanedInput }
     setMessages(prev => [...prev, userMessage])
     setInputMessage('')
     setIsLoading(true)
@@ -31,7 +52,7 @@ const Chat = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ message: inputMessage })
+        body: JSON.stringify({ message: cleanedInput })
       })
 
       if (!response.ok) {
@@ -95,7 +116,7 @@ const Chat = () => {
             {messages.map((message, index) => (
               <div key={index} className={`message ${message.type}`}>
                 <div className="message-content">
-                  {message.content}
+                  {sanitizeContent(message.content)}
                 </div>
               </div>
             ))}

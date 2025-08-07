@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Depends, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Depends, BackgroundTasks, Request
 from app.models.upload import UploadResponse, UploadStatus
 from app.api.auth import get_current_user
 from app.services.file_service import FileService
@@ -19,6 +19,7 @@ async def get_cleaning_service() -> CleaningService:
 
 @router.post("/", response_model=UploadResponse)
 async def upload_file(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
@@ -27,19 +28,29 @@ async def upload_file(
 ):
     settings = get_settings()
     
-    # Validate file
+    # Security: Pre-validate file size from Content-Length header before reading file
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            content_length_int = int(content_length)
+            if content_length_int > settings.max_upload_size:
+                raise ValidationException(f"File size exceeds {settings.max_upload_size / 1024 / 1024}MB limit")
+        except ValueError:
+            # Invalid content-length header, will be caught by actual file size check
+            pass
+    
+    # Validate file extension
     if not file.filename.endswith(tuple(settings.allowed_extensions)):
         raise ValidationException(f"Only {settings.allowed_extensions} files are allowed")
     
-    # Check file size
-    file_size = 0
+    # Read file content and validate actual size
     contents = await file.read()
     file_size = len(contents)
     
     if file_size > settings.max_upload_size:
         raise ValidationException(f"File size exceeds {settings.max_upload_size / 1024 / 1024}MB limit")
     
-    # Reset file position
+    # Reset file position for further processing
     await file.seek(0)
     
     # Create upload record
@@ -67,6 +78,7 @@ async def upload_file(
 
 @router.post("/multiple", response_model=List[UploadResponse])
 async def upload_multiple_files(
+    request: Request,
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     current_user: dict = Depends(get_current_user),
@@ -78,6 +90,18 @@ async def upload_multiple_files(
     upload_responses = []
     valid_files = []
     
+    # Security: Pre-validate total content length for multiple files
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            content_length_int = int(content_length)
+            # For multiple files, allow total size up to 5x single file limit
+            max_total_size = settings.max_upload_size * 5
+            if content_length_int > max_total_size:
+                raise ValidationException(f"Total upload size exceeds {max_total_size / 1024 / 1024}MB limit")
+        except ValueError:
+            pass
+    
     # Validate all files first
     for file in files:
         try:
@@ -85,14 +109,14 @@ async def upload_multiple_files(
             if not file.filename.endswith(tuple(settings.allowed_extensions)):
                 raise ValidationException(f"File {file.filename}: Only {settings.allowed_extensions} files are allowed")
             
-            # Check file size
+            # Read and validate file size
             contents = await file.read()
             file_size = len(contents)
             
             if file_size > settings.max_upload_size:
                 raise ValidationException(f"File {file.filename}: Size exceeds {settings.max_upload_size / 1024 / 1024}MB limit")
             
-            # Reset file position
+            # Reset file position for further processing
             await file.seek(0)
             
             # Store file info for processing

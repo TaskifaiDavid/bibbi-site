@@ -117,8 +117,13 @@ class SupabaseSQLDatabase:
         self._include_tables = ['sellout_entries2', 'uploads', 'products']
     
     def run(self, command: str, fetch: str = "all"):
-        """Execute SQL command using Supabase REST API"""
+        """Execute SQL command using Supabase REST API with security validation"""
         try:
+            # Security: Validate SQL command pattern before execution
+            if not self._validate_sql_command(command):
+                logger.warning(f"SQL command blocked by security validation: {command}")
+                return "Query pattern not allowed for security reasons"
+            
             logger.info(f"Executing SQL via Supabase REST API: {command}")
             
             # Simple test query
@@ -142,6 +147,48 @@ class SupabaseSQLDatabase:
         except Exception as e:
             logger.error(f"Error executing Supabase query: {str(e)}")
             return str(e)
+    
+    def _validate_sql_command(self, command: str) -> bool:
+        """Validate SQL command against security patterns"""
+        import re
+        
+        if not command or not isinstance(command, str):
+            return False
+        
+        # Convert to uppercase and strip for pattern matching
+        command_upper = command.upper().strip()
+        
+        # Block dangerous SQL operations completely
+        dangerous_patterns = [
+            r'\bDROP\b', r'\bDELETE\b', r'\bINSERT\b', r'\bUPDATE\b',
+            r'\bALTER\b', r'\bCREATE\b', r'\bTRUNCATE\b', r'\bGRANT\b',
+            r'\bREVOKE\b', r'\bEXEC\b', r'\bSHUTDOWN\b', r'\bUNION\b',
+            r'--', r'/\*', r'\*/', r';.*SELECT', r'SELECT.*INTO\s+OUTFILE'
+        ]
+        
+        for pattern in dangerous_patterns:
+            if re.search(pattern, command_upper):
+                logger.warning(f"Blocked dangerous SQL pattern: {pattern}")
+                return False
+        
+        # Allow only safe SELECT patterns on approved tables
+        safe_patterns = [
+            r'^SELECT\s+.*\s+FROM\s+sellout_entries2\b',
+            r'^SELECT\s+\*\s+FROM\s+sellout_entries2\b',
+            r'^SELECT\s+COUNT\(\*\)\s+FROM\s+sellout_entries2\b',
+            r'^SELECT\s+1\s*$',
+            r'^SELECT\s+1\s+AS\s+TEST\s*$',
+            r'^SELECT\s+.*\s+FROM\s+products\b',
+            r'^SELECT\s+.*\s+FROM\s+uploads\b'
+        ]
+        
+        # Check if command matches at least one safe pattern
+        for pattern in safe_patterns:
+            if re.match(pattern, command_upper):
+                return True
+        
+        logger.warning(f"SQL command doesn't match any safe patterns: {command}")
+        return False
     
     async def _execute_supabase_query(self, command: str):
         """Execute query using DatabaseService (same as Excel cleaning)"""
@@ -169,6 +216,7 @@ class SupabaseSQLDatabase:
     
     def get_table_info(self, table_names=None):
         """Return table schema information"""
+        # Note: table_names parameter maintained for compatibility but not currently used
         return """
         Table: sellout_entries2
         Columns:

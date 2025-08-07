@@ -37,47 +37,6 @@ async def logout(
     success = await auth_service.logout(token)
     return {"success": success}
 
-@router.get("/debug-token")
-async def debug_token(
-    authorization: Optional[str] = Header(None),
-    auth_service: AuthService = Depends(get_auth_service)
-):
-    """Debug endpoint to check token validity and provide diagnostics"""
-    import os
-    
-    # Security: Only allow debug endpoint in development environment
-    if os.getenv("API_HOST") != "0.0.0.0" or os.getenv("ENVIRONMENT", "development") == "production":
-        raise AuthenticationException("Debug endpoint not available in production")
-    
-    debug_info = {
-        "timestamp": str(__import__('datetime').datetime.now()),
-        "authorization_header_provided": authorization is not None,
-        "authorization_header_length": len(authorization) if authorization else 0,
-        "authorization_header_format": "valid" if authorization and authorization.startswith("Bearer ") else "invalid",
-        "token_extracted": False,
-        "token_length": 0,
-        "user_found": False,
-        "error": None
-    }
-    
-    try:
-        if authorization and authorization.startswith("Bearer "):
-            token = authorization.split(" ")[1]
-            debug_info["token_extracted"] = True
-            debug_info["token_length"] = len(token)
-            debug_info["token_preview"] = f"***...{token[-4:]}" if len(token) > 10 else "***"
-            
-            user = await auth_service.verify_token(token)
-            debug_info["user_found"] = user is not None
-            if user:
-                debug_info["user_email"] = user.get("email", "unknown")
-                debug_info["user_id"] = user.get("id", "unknown")
-        
-        return debug_info
-        
-    except Exception as e:
-        debug_info["error"] = str(e)
-        return debug_info
 
 async def get_current_user(
     authorization: Optional[str] = Header(None),

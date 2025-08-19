@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Eye, EyeOff, Mail, Lock, Database } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
 import apiService from '../services/api'
 
 function Login({ onLoginSuccess }) {
@@ -66,15 +66,14 @@ function Login({ onLoginSuccess }) {
       <div className="login-box">
         <div className="login-header">
           <div className="logo-container">
-            <Database size={32} className="logo-icon" />
-            <h1>BIBBI</h1>
+            <h1 className="text-heading">BIBBI</h1>
           </div>
-          <p className="subtitle">Data Analytics Platform</p>
+          <p className="subtitle text-small-caps">Data Analytics Platform</p>
         </div>
         
         <form onSubmit={handleLogin} className="login-form">
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="email" className="text-small-caps">Email Address</label>
             <div className="input-container">
               <Mail size={16} className="input-icon" />
               <input
@@ -90,7 +89,7 @@ function Login({ onLoginSuccess }) {
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password" className="text-small-caps">Password</label>
             <div className="input-container">
               <Lock size={16} className="input-icon" />
               <input
@@ -119,13 +118,13 @@ function Login({ onLoginSuccess }) {
             </div>
           )}
 
-          <button type="submit" disabled={loading} className="btn-primary login-btn">
+          <button type="submit" disabled={loading} className="btn-primary login-btn text-uppercase">
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
         
         <div className="login-footer">
-          <p>Secure access to your data analytics dashboard</p>
+          <p className="text-small-caps">Secure access to your data analytics dashboard</p>
         </div>
       </div>
     </div>

@@ -150,20 +150,20 @@ const ChatSection = () => {
           <div className="header-title">
             <MessageSquare size={24} className="header-icon" />
             <div>
-              <h2>Data Chat</h2>
-              <p>Ask questions about your sales data and get AI-powered insights</p>
+              <h2 className="text-heading">DATA CHAT</h2>
+              <p className="text-body">Ask questions about your sales data and get AI-powered insights</p>
             </div>
           </div>
         </div>
         <div className="chat-actions">
           <button 
             onClick={clearChat} 
-            className="clear-btn" 
+            className="btn-secondary" 
             disabled={messages.length === 0}
             title="Clear conversation"
           >
             <Trash2 size={16} />
-            <span>Clear Chat</span>
+            <span className="text-uppercase">Clear Chat</span>
           </button>
         </div>
       </div>
@@ -176,8 +176,8 @@ const ChatSection = () => {
                 <div className="welcome-header">
                   <Sparkles size={32} className="welcome-icon" />
                   <div>
-                    <h3>Welcome!</h3>
-                    <p>I can help you analyze your sales data and provide insights</p>
+                    <h3 className="text-subheading">WELCOME!</h3>
+                    <p className="text-body">I can help you analyze your sales data and provide insights</p>
                   </div>
                 </div>
               </div>
@@ -185,7 +185,7 @@ const ChatSection = () => {
               <div className="sample-questions">
                 <div className="questions-header">
                   <Lightbulb size={20} />
-                  <h4>Try asking:</h4>
+                  <h4 className="text-small-caps">TRY ASKING:</h4>
                 </div>
                 <div className="question-grid">
                   {sampleQuestions.map((question, index) => (
@@ -213,8 +213,8 @@ const ChatSection = () => {
               </div>
               <div className="message-body">
                 <div className="message-header">
-                  <span className="message-sender">
-                    {message.type === 'user' ? 'You' : 'AI Assistant'}
+                  <span className="message-sender text-small-caps">
+                    {message.type === 'user' ? 'YOU' : 'AI ASSISTANT'}
                   </span>
                   <span className="message-time">
                     {message.timestamp?.toLocaleTimeString()}
@@ -281,14 +281,14 @@ const ChatSection = () => {
             <button 
               onClick={sendMessage} 
               disabled={isLoading || !inputMessage.trim()}
-              className="send-btn"
+              className="btn-primary"
               title="Send message"
             >
               <Send size={18} />
             </button>
           </div>
           <div className="input-hint">
-            <span>Press Enter to send • Shift+Enter for new line</span>
+            <span className="text-small-caps">Press Enter to send • Shift+Enter for new line</span>
           </div>
         </div>
       </div>

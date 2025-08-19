@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap');
 
 * {
   margin: 0;
@@ -7,87 +8,57 @@
 }
 
 :root {
-  /* Vibrant Primary Colors */
-  --primary-blue-900: #1e3a8a;
-  --primary-blue-800: #1e40af;
-  --primary-blue-700: #1d4ed8;
-  --primary-blue-600: #2563eb;
-  --primary-blue-500: #3b82f6;
-  --primary-blue-400: #60a5fa;
-  --primary-blue-300: #93c5fd;
-  --primary-blue-200: #bfdbfe;
-  --primary-blue-100: #dbeafe;
-  --primary-blue-50: #eff6ff;
+  /* Bibbi Parfum Brand Colors */
+  --bibbi-blue: #002FA7;         /* International Klein Blue */
+  --bibbi-blue-dark: #001f75;    /* Darker shade for hover */
+  --bibbi-blue-light: #1a4bc7;   /* Lighter shade */
+  --bibbi-blue-pale: #e6eeff;    /* Very light blue for subtle backgrounds */
   
-  /* Vibrant Secondary Colors */
-  --purple-700: #7c3aed;
-  --purple-600: #9333ea;
-  --purple-500: #a855f7;
-  --purple-200: #ddd6fe;
-  --purple-100: #f3e8ff;
-  --purple-50: #faf5ff;
+  /* Primary Colors based on brand */
+  --primary-blue-900: #001f75;
+  --primary-blue-800: #002FA7;
+  --primary-blue-700: #1a4bc7;
+  --primary-blue-600: #3366d6;
+  --primary-blue-500: #4d7fe6;
+  --primary-blue-400: #6699ff;
+  --primary-blue-300: #80b3ff;
+  --primary-blue-200: #99ccff;
+  --primary-blue-100: #b3d9ff;
+  --primary-blue-50: #e6eeff;
   
-  --teal-600: #0d9488;
-  --teal-500: #14b8a6;
-  --teal-200: #99f6e4;
-  --teal-100: #ccfbf1;
-  --teal-50: #f0fdfa;
+  /* Minimal Secondary Colors - only what's needed */
+  --success-600: #059669;
+  --success-500: #10b981;
+  --success-100: #d1fae5;
+  --success-50: #ecfdf5;
   
-  --orange-700: #c2410c;
-  --orange-600: #ea580c;
-  --orange-500: #f97316;
-  --orange-200: #fed7aa;
-  --orange-100: #fed7aa;
-  --orange-50: #fff7ed;
+  --warning-600: #d97706;
+  --warning-500: #f59e0b;
+  --warning-100: #fef3c7;
+  --warning-50: #fffbeb;
   
-  --pink-700: #be185d;
-  --pink-600: #db2777;
-  --pink-500: #ec4899;
-  --pink-200: #fbcfe8;
-  --pink-100: #fce7f3;
-  --pink-50: #fdf2f8;
-  
-  --emerald-600: #059669;
-  --emerald-500: #10b981;
-  --emerald-100: #d1fae5;
-  --emerald-50: #ecfdf5;
-  
-  /* Neutral Gray Scale */
-  --gray-900: #111827;
-  --gray-800: #1f2937;
-  --gray-700: #374151;
-  --gray-600: #4b5563;
-  --gray-500: #6b7280;
-  --gray-400: #9ca3af;
-  --gray-300: #d1d5db;
-  --gray-200: #e5e7eb;
-  --gray-100: #f3f4f6;
-  --gray-50: #f9fafb;
-  
-  /* Semantic Colors - More Vibrant */
-  --success-700: var(--emerald-600);
-  --success-600: var(--emerald-500);
-  --success-500: var(--emerald-500);
-  --success-100: var(--emerald-100);
-  --success-50: var(--emerald-50);
-  
-  --warning-700: var(--orange-600);
-  --warning-600: var(--orange-500);
-  --warning-500: var(--orange-500);
-  --warning-100: var(--orange-100);
-  --warning-50: var(--orange-50);
-  
-  --error-700: #dc2626;
-  --error-600: #ef4444;
-  --error-500: #f87171;
+  --error-600: #dc2626;
+  --error-500: #ef4444;
   --error-100: #fee2e2;
   --error-50: #fef2f2;
   
-  /* Background & Surface Colors */
-  --background-white: #ffffff;
-  --background-gray: var(--gray-50);
+  /* Bibbi Parfum Neutral Colors */
+  --gray-900: #000000;           /* Pure black for text */
+  --gray-800: #111111;           /* Dark charcoal */
+  --gray-700: #333333;
+  --gray-600: #666666;
+  --gray-500: #999999;
+  --gray-400: #cccccc;
+  --gray-300: #e0e0e0;
+  --gray-200: #eeeeee;
+  --gray-100: #f5f5f5;
+  --gray-50: #fafafa;
+  
+  /* Bibbi Brand Backgrounds */
+  --background-white: #ffffff;    /* Pure white */
+  --background-warm: #efedeb;     /* Pale warm gray from style guide */
   --surface-white: #ffffff;
-  --surface-gray: var(--gray-100);
+  --surface-warm: #efedeb;
   
   /* Border Colors */
   --border-light: var(--gray-200);
@@ -95,21 +66,22 @@
   --border-dark: var(--gray-400);
   
   /* Text Colors */
-  --text-primary: var(--gray-900);
-  --text-secondary: var(--gray-600);
-  --text-tertiary: var(--gray-500);
-  --text-inverse: #ffffff;
+  --text-primary: var(--gray-900);     /* Pure black */
+  --text-secondary: var(--gray-600);   /* Medium gray */
+  --text-tertiary: var(--gray-500);    /* Light gray */
+  --text-inverse: #ffffff;             /* White on blue */
+  --text-blue: var(--bibbi-blue);      /* Brand blue for text */
   
-  /* Enhanced Typography Scale */
+  /* Bibbi Typography Scale - Clean & Modern */
   --text-xs: 0.75rem;     /* 12px */
-  --text-sm: 0.875rem;    /* 14px */
-  --text-base: 1rem;      /* 16px */
+  --text-sm: 0.875rem;    /* 14px - for UI elements, small labels */
+  --text-base: 1rem;      /* 16px - body text */
   --text-lg: 1.125rem;    /* 18px */
   --text-xl: 1.25rem;     /* 20px */
-  --text-2xl: 1.5rem;     /* 24px */
-  --text-3xl: 1.875rem;   /* 30px */
-  --text-4xl: 2.25rem;    /* 36px */
-  --text-5xl: 3rem;       /* 48px */
+  --text-2xl: 1.5rem;     /* 24px - subheadings */
+  --text-3xl: 1.875rem;   /* 30px - section titles */
+  --text-4xl: 2.25rem;    /* 36px - page titles */
+  --text-5xl: 3rem;       /* 48px - hero titles */
   
   /* Line Heights */
   --leading-tight: 1.25;
@@ -118,26 +90,36 @@
   --leading-relaxed: 1.625;
   --leading-loose: 2;
   
-  /* Font Family & Weights */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Bibbi Typography - Clean Sans-serif */
+  --font-family: 'Archivo', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-fallback: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   
-  /* Spacing Scale (8px grid) */
+  /* Letter Spacing for Uppercase Text */
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
+  --letter-spacing-wider: 0.05em;
+  --letter-spacing-widest: 0.1em;
+  
+  /* Bibbi Spacing - Generous Whitespace (8px grid) */
   --spacing-0: 0;
   --spacing-1: 0.25rem;   /* 4px */
   --spacing-2: 0.5rem;    /* 8px */
   --spacing-3: 0.75rem;   /* 12px */
   --spacing-4: 1rem;      /* 16px */
   --spacing-5: 1.25rem;   /* 20px */
-  --spacing-6: 1.5rem;    /* 24px */
+  --spacing-6: 1.5rem;    /* 24px - main gutter size */
   --spacing-8: 2rem;      /* 32px */
   --spacing-10: 2.5rem;   /* 40px */
   --spacing-12: 3rem;     /* 48px */
   --spacing-16: 4rem;     /* 64px */
   --spacing-20: 5rem;     /* 80px */
+  --spacing-24: 6rem;     /* 96px - large sections */
+  --spacing-32: 8rem;     /* 128px - hero sections */
   
   /* Legacy spacing for compatibility */
   --spacing-xs: var(--spacing-2);
@@ -147,28 +129,30 @@
   --spacing-xl: var(--spacing-12);
   --spacing-2xl: var(--spacing-16);
   
-  /* Border Radius */
+  /* Bibbi Border Radius - Minimal */
   --radius-none: 0;
-  --radius-sm: 0.375rem;  /* 6px */
-  --radius-md: 0.5rem;    /* 8px */
-  --radius-lg: 0.75rem;   /* 12px */
-  --radius-xl: 1rem;      /* 16px */
-  --radius-2xl: 1.5rem;   /* 24px */
+  --radius-sm: 0.25rem;   /* 4px - small elements */
+  --radius-md: 0.375rem;  /* 6px - buttons, inputs */
+  --radius-lg: 0.5rem;    /* 8px - cards */
+  --radius-xl: 0.75rem;   /* 12px - larger elements */
+  --radius-2xl: 1rem;     /* 16px */
   --radius-full: 50px;
   
-  /* Enhanced Shadows */
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  /* Bibbi Shadows - Subtle and Clean */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
-  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.03);
+  --shadow-blue: 0 4px 12px 0 rgb(0 47 167 / 0.15); /* Blue shadow for primary elements */
   
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-base: 250ms ease;
-  --transition-slow: 500ms ease;
+  /* Bibbi Transitions - Smooth & Elegant */
+  --transition-fast: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 html {
@@ -177,47 +161,16 @@ html {
 
 body {
   font-family: var(--font-family);
-  background: linear-gradient(135deg, 
-    var(--purple-100) 0%, 
-    var(--pink-50) 25%, 
-    var(--orange-50) 50%, 
-    var(--teal-50) 75%, 
-    var(--primary-blue-50) 100%);
-  background-attachment: fixed;
+  background: var(--background-white);
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: 1.5; /* Bibbi uses 1.5 line height */
   font-weight: var(--font-weight-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   position: relative;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: 
-    radial-gradient(circle at 20% 20%, var(--purple-100) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, var(--pink-100) 0%, transparent 50%),
-    radial-gradient(circle at 40% 80%, var(--orange-100) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, var(--teal-100) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, var(--primary-blue-100) 0%, transparent 50%);
-  opacity: 0.6;
-  z-index: -1;
-  animation: backgroundFloat 20s ease-in-out infinite alternate;
-}
-
-@keyframes backgroundFloat {
-  0% {
-    transform: translateX(0%) translateY(0%) rotate(0deg);
-  }
-  100% {
-    transform: translateX(-2%) translateY(-2%) rotate(1deg);
-  }
-}
+/* Removed colorful background animations - Bibbi uses clean backgrounds */
 
 .app {
   min-height: 100vh;
@@ -276,66 +229,85 @@ button:disabled {
   pointer-events: none;
 }
 
-/* Primary Buttons - Main Actions */
+/* Bibbi Primary Buttons - Brand Blue with Uppercase */
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-blue-600) 0%, var(--primary-blue-500) 100%);
+  background: var(--bibbi-blue);
   color: var(--text-inverse);
   padding: var(--spacing-3) var(--spacing-6);
-  font-size: var(--text-base);
-  box-shadow: var(--shadow-sm);
-  border: 2px solid transparent;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  border: none;
+  box-shadow: none; /* Minimal shadows */
+  transition: var(--transition-base);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--primary-blue-700) 0%, var(--primary-blue-600) 100%);
-  box-shadow: var(--shadow-md);
+  background: var(--bibbi-blue-dark);
   transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
-/* Secondary Buttons - Supporting Actions */
+/* Bibbi Secondary Buttons - Outline Style with Blue Text */
 .btn-secondary {
-  background: var(--surface-white);
-  color: var(--text-primary);
+  background: transparent;
+  color: var(--bibbi-blue);
   padding: var(--spacing-3) var(--spacing-6);
-  font-size: var(--text-base);
-  border: 2px solid var(--border-medium);
-  box-shadow: var(--shadow-xs);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--bibbi-blue);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  transition: var(--transition-base);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--gray-50);
-  border-color: var(--border-dark);
-  box-shadow: var(--shadow-sm);
+  background: var(--bibbi-blue);
+  color: var(--text-inverse);
   transform: translateY(-1px);
 }
 
-/* Success Buttons - Positive Actions */
+/* Bibbi Success Buttons */
 .btn-success {
-  background: linear-gradient(135deg, var(--success-600) 0%, var(--success-500) 100%);
+  background: var(--success-600);
   color: var(--text-inverse);
   padding: var(--spacing-3) var(--spacing-6);
-  font-size: var(--text-base);
-  box-shadow: var(--shadow-sm);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  border: none;
+  box-shadow: none;
+  transition: var(--transition-base);
 }
 
 .btn-success:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--success-700) 0%, var(--success-600) 100%);
-  box-shadow: var(--shadow-md);
+  background: var(--success-500);
   transform: translateY(-1px);
 }
 
-/* Destructive Buttons - Delete/Remove Actions */
+/* Bibbi Destructive Buttons */
 .btn-destructive {
-  background: linear-gradient(135deg, var(--error-600) 0%, var(--error-500) 100%);
+  background: var(--error-600);
   color: var(--text-inverse);
   padding: var(--spacing-3) var(--spacing-6);
-  font-size: var(--text-base);
-  box-shadow: var(--shadow-sm);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  border: none;
+  box-shadow: none;
+  transition: var(--transition-base);
 }
 
 .btn-destructive:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--error-700) 0%, var(--error-600) 100%);
-  box-shadow: var(--shadow-md);
+  background: var(--error-500);
   transform: translateY(-1px);
 }
 
@@ -391,12 +363,46 @@ button:disabled {
   animation: spin 1s linear infinite;
 }
 
-/* Login Styles */
+/* Bibbi Typography Utility Classes */
+.text-uppercase {
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
+}
+
+.text-heading {
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-widest);
+  line-height: var(--leading-tight);
+}
+
+.text-subheading {
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+  line-height: var(--leading-snug);
+}
+
+.text-body {
+  line-height: var(--leading-normal);
+  font-weight: var(--font-weight-normal);
+}
+
+.text-small-caps {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Bibbi Login Styles - Clean & Luxury */
 .login-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  padding: var(--spacing-4);
+  background: var(--background-white);
   background: linear-gradient(135deg, 
     var(--purple-200) 0%, 
     var(--pink-100) 25%, 
@@ -424,31 +430,17 @@ button:disabled {
   z-index: 0;
 }
 
-@keyframes loginFloat {
-  0%, 100% {
-    transform: rotate(0deg) translate(0px, 0px);
-  }
-  33% {
-    transform: rotate(120deg) translate(30px, -30px);
-  }
-  66% {
-    transform: rotate(240deg) translate(-20px, 20px);
-  }
-}
+/* Removed login animations - Bibbi uses clean, minimal design */
 
 .login-box {
   background: var(--surface-white);
-  padding: var(--spacing-12);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-xl);
+  padding: var(--spacing-16);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
   border: 1px solid var(--border-light);
   position: relative;
-  overflow: hidden;
-  z-index: 1;
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
 }
 
 .login-box::before {
@@ -458,7 +450,7 @@ button:disabled {
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--primary-blue-600), var(--primary-blue-500));
+  background: var(--bibbi-blue);
 }
 
 .login-header {
@@ -481,9 +473,10 @@ button:disabled {
 .login-box h1 {
   margin: 0;
   color: var(--text-primary);
-  font-size: var(--text-3xl);
+  font-size: var(--text-4xl);
   font-weight: var(--font-weight-bold);
-  letter-spacing: -0.025em;
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
 }
 
 .subtitle {
@@ -562,8 +555,8 @@ button:disabled {
 .form-group input:focus,
 .input-with-icon:focus {
   outline: none;
-  border-color: var(--primary-blue-500);
-  box-shadow: 0 0 0 3px var(--primary-blue-100);
+  border-color: var(--bibbi-blue);
+  box-shadow: 0 0 0 2px var(--bibbi-blue-pale);
 }
 
 .form-group input::placeholder,
@@ -579,47 +572,12 @@ button:disabled {
   line-height: 1.4;
 }
 
-/* Button Styles */
-button {
-  font-family: var(--font-family);
-  font-size: 1rem;
-  font-weight: var(--font-weight-medium);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-}
+/* Removed duplicate button styles - using styles defined above */
 
-.btn-primary {
+.login-btn {
   width: 100%;
-  padding: 14px 24px;
-  background-color: var(--primary-blue);
-  color: var(--background-white);
-  font-weight: var(--font-weight-medium);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-blue-hover);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  padding: 8px 16px;
-  background-color: var(--background-white);
-  color: var(--text-black);
-  border: 1px solid var(--border-medium);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: var(--background-light);
+  padding: var(--spacing-4) var(--spacing-6);
+  margin-top: var(--spacing-2);
 }
 
 /* Error and Success States */
@@ -693,12 +651,12 @@ button {
   font-size: 0.875rem;
 }
 
-/* Dashboard Styles */
+/* Bibbi Dashboard Styles - Clean & Minimal */
 .dashboard {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: var(--background-gray);
+  background-color: var(--background-white);
 }
 
 .dashboard-header {
@@ -709,7 +667,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none; /* Bibbi uses minimal shadows */
   position: sticky;
   top: 0;
   z-index: 100;
@@ -728,24 +686,25 @@ button {
 }
 
 .brand-icon {
-  color: var(--primary-blue-600);
+  color: var(--bibbi-blue);
 }
 
 .brand-info h1 {
-  font-size: var(--text-xl);
+  font-size: var(--text-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
-  letter-spacing: -0.025em;
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-widest);
   margin: 0;
   line-height: 1;
 }
 
 .brand-subtitle {
   font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-normal);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--letter-spacing-wider);
 }
 
 .dashboard-nav {
@@ -763,21 +722,23 @@ button {
   color: var(--text-secondary);
   font-weight: var(--font-weight-medium);
   font-size: var(--text-sm);
-  border-radius: var(--radius-lg);
-  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+  border-radius: var(--radius-md);
+  transition: var(--transition-base);
   cursor: pointer;
   position: relative;
 }
 
 .nav-item:hover {
-  color: var(--text-primary);
-  background-color: var(--gray-100);
+  color: var(--bibbi-blue);
+  background-color: var(--bibbi-blue-pale);
 }
 
 .nav-item.active {
-  color: var(--purple-600);
-  background: linear-gradient(135deg, var(--purple-100) 0%, var(--pink-100) 100%);
-  box-shadow: var(--shadow-xs);
+  color: var(--text-inverse);
+  background: var(--bibbi-blue);
+  box-shadow: none;
 }
 
 .nav-icon {
@@ -858,10 +819,11 @@ button {
 
 .dashboard-main {
   flex: 1;
-  padding: var(--spacing-xl) var(--spacing-lg);
+  padding: var(--spacing-12) var(--spacing-8);
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  background: var(--background-white);
 }
 
 /* Override for Analytics Dashboard to use full width */
@@ -882,17 +844,17 @@ button {
   width: 100%;
 }
 
-/* Upload Styles */
+/* Bibbi Upload Styles - Clean & Minimal */
 .upload-container {
   background: var(--surface-white);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-light);
   overflow: hidden;
 }
 
 .upload-header {
-  background: linear-gradient(135deg, var(--purple-600) 0%, var(--pink-500) 100%);
+  background: var(--bibbi-blue);
   color: var(--text-inverse);
   padding: var(--spacing-8);
   text-align: center;
@@ -4154,4 +4116,107 @@ textarea:focus-visible {
 @keyframes shimmer {
   0% { left: -100%; }
   100% { left: 100%; }
+}
+
+/* Additional Bibbi Parfum Responsive Design */
+@media (max-width: 576px) {
+  .dashboard-header {
+    padding: 0 var(--spacing-4);
+    height: 70px;
+  }
+  
+  .brand-info h1 {
+    font-size: var(--text-xl);
+  }
+  
+  .nav-item {
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--text-xs);
+  }
+  
+  .nav-label {
+    display: none;
+  }
+  
+  .upload-container {
+    margin: var(--spacing-4);
+  }
+  
+  .upload-header {
+    padding: var(--spacing-6);
+  }
+  
+  .header-content h2 {
+    font-size: var(--text-xl);
+  }
+  
+  .mode-toggle-group {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+}
+
+/* Bibbi Focus States and Hover Effects */
+.btn-primary:focus,
+.btn-secondary:focus,
+.btn-success:focus {
+  outline: 2px solid var(--bibbi-blue);
+  outline-offset: 2px;
+}
+
+.upload-dropzone:focus-within {
+  border-color: var(--bibbi-blue);
+  box-shadow: 0 0 0 2px var(--bibbi-blue-pale);
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid var(--bibbi-blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+/* Additional Typography Refinements */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family);
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+}
+
+.text-heading {
+  color: var(--text-primary);
+}
+
+.text-subheading {
+  color: var(--text-primary);
+}
+
+.text-small-caps {
+  color: var(--text-secondary);
+}
+
+/* Smooth Animations for Bibbi */
+* {
+  transition: color var(--transition-base),
+             background-color var(--transition-base),
+             border-color var(--transition-base),
+             transform var(--transition-fast),
+             box-shadow var(--transition-base);
+}
+
+button, .nav-item, .mode-toggle {
+  transition: all var(--transition-base);
+}
+
+/* Print Styles */
+@media print {
+  .dashboard-header,
+  .chat-section,
+  .upload-container {
+    display: none;
+  }
+  
+  body {
+    background: white;
+    color: black;
+  }
 }

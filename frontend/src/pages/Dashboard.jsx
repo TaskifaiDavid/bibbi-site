@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Database, Upload as UploadIcon, Activity, BarChart3, MessageSquare, LogOut, User } from 'lucide-react'
+import { Upload as UploadIcon, Activity, BarChart3, MessageSquare, LogOut, User } from 'lucide-react'
 import Upload from '../components/Upload'
 import StatusList from '../components/StatusList'
 import AnalyticsDashboard from '../components/AnalyticsDashboard'
@@ -49,10 +49,9 @@ function Dashboard({ user, onLogout }) {
       <header className="dashboard-header">
         <div className="header-left">
           <div className="brand-container">
-            <Database size={24} className="brand-icon" />
             <div className="brand-info">
-              <h1>BIBBI</h1>
-              <span className="brand-subtitle">Analytics Platform</span>
+              <h1 className="text-heading">BIBBI</h1>
+              <span className="brand-subtitle text-small-caps">Data Analytics Platform</span>
             </div>
           </div>
           
@@ -67,7 +66,7 @@ function Dashboard({ user, onLogout }) {
                   title={item.description}
                 >
                   <Icon size={16} className="nav-icon" />
-                  <span className="nav-label">{item.label}</span>
+                  <span className="nav-label text-uppercase">{item.label}</span>
                 </button>
               )
             })}
@@ -80,12 +79,12 @@ function Dashboard({ user, onLogout }) {
               <User size={16} className="user-icon" />
               <div className="user-details">
                 <span className="user-email">{user?.email || 'Unknown User'}</span>
-                <span className="user-role">Administrator</span>
+                <span className="user-role text-small-caps">Administrator</span>
               </div>
             </div>
             <button onClick={handleLogout} className="logout-btn" title="Sign out">
               <LogOut size={16} />
-              <span>Sign Out</span>
+              <span className="text-uppercase">Sign Out</span>
             </button>
           </div>
         </div>

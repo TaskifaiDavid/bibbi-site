@@ -1,0 +1,14 @@
+{
+  "agents": {
+    "product-manager": {
+      "name": "product-manager",
+      "description": "Transform raw ideas or business goals into structured, actionable product plans. Create user personas, detailed user stories, and prioritized feature backlogs. Use for product strategy, requirements gathering, and roadmap planning.",
+      "configPath": ".claude/agents/product-manager.md",
+      "outputDirectory": "project-documentation",
+      "outputFile": "product-manager-output.md",
+      "status": "active"
+    }
+  },
+  "defaultOutput": "project-documentation",
+  "lastUpdated": "2025-08-19T01:00:00Z"
+}

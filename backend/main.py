@@ -57,7 +57,7 @@ app.add_middleware(RateLimitMiddleware,
 app.add_middleware(ErrorHandlingMiddleware, debug=debug_mode)
 
 # 6. CORS middleware (innermost, closest to application)
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174").split(",")
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

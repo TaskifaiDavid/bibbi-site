@@ -28,8 +28,27 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:docs.digitalocean.com)",
       "Bash(mv:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(claude mcp add supabase:*)",
+      "Bash(claude mcp add:*)",
+      "mcp__playwright__browser_navigate",
+      "Bash(claude mcp:*)",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_close",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_evaluate",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(./run.sh)",
+      "mcp__playwright__browser_press_key",
+      "Bash(git add:*)"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "task-master"
+  ]
 }

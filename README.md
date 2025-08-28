@@ -1,174 +1,183 @@
-# Bibbi Cleaner v2.0
+# Supabase CLI
 
-A comprehensive data cleaning and analytics platform for Bibbi Parfum sales data management.
+[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
+](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
 
-## Features
+[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
 
-### Core Data Pipeline
-- Secure user authentication via Supabase
-- Excel file upload (.xlsx up to 10MB)
-- Intelligent data cleaning pipeline with vendor-specific rules
-- Automatic schema detection and normalization
-- Data persistence in Supabase
-- Processing status tracking and error reporting
+This repository contains all the functionality for Supabase CLI.
 
-### Email Reporting System (v2.0)
-- Automated email reports with PDF/CSV/Excel attachments
-- Email delivery tracking and status monitoring
-- Customizable report generation with metadata
-- Email logs and history viewer
-- Integration with external email services (SMTP/SendGrid)
+- [x] Running Supabase locally
+- [x] Managing database migrations
+- [x] Creating and deploying Supabase Functions
+- [x] Generating types directly from your database schema
+- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
 
-### AI-Powered Database Chat (v2.0)
-- Natural language SQL query generation using OpenAI GPT-4
-- Interactive chat interface for data exploration
-- Secure read-only database access with user isolation
-- Query history and session management
-- Real-time data visualization and insights
+## Getting started
 
-### External Dashboard Integration (v2.0)
-- Iframe embedding for external analytics platforms
-- Support for Tableau, Power BI, Grafana, Looker, and Metabase
-- Dashboard configuration management
-- Authentication handling for external services
-- Responsive dashboard viewing with error handling
+### Install the CLI
 
-## Project Structure
-
-```
-.
-├── backend/          # Python FastAPI backend
-├── frontend/         # React frontend with Vite
-├── database/         # Database schemas and migrations
-├── PRD.md           # Product Requirements Document
-└── README.md        # This file
-```
-
-## Setup
-
-1. **Clone and install dependencies:**
-   ```bash
-   # Backend
-   cd backend
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-
-   # Frontend
-   cd ../frontend
-   npm install
-   ```
-
-2. **Configure environment:**
-   ```bash
-   cd backend
-   cp .env.example .env
-   # Edit .env with your configuration:
-   # - Supabase credentials
-   # - Email service settings (SMTP/SendGrid)
-   # - OpenAI API key for chat functionality
-   # - Redis URL for background processing
-   ```
-
-3. **Setup Database:**
-   - Create a new Supabase project
-   - Run the base schema: `database/schema.sql`
-   - Run the v2.0 extensions: `database/email_schema.sql`
-   - Copy project URL and keys to `.env`
-
-4. **Run the application:**
-   ```bash
-   # Terminal 1 - Backend
-   cd backend
-   uvicorn main:app --reload
-
-   # Terminal 2 - Frontend
-   cd frontend
-   npm run dev
-   ```
-
-## Supported Excel Formats
-
-The pipeline handles vendor-specific formats:
-- Galilu
-- Boxnox
-- Skins SA
-- CDLC
-- Continuity
-- Ukraine TDSheet
-
-See PRD.md for detailed field mappings and cleaning rules.
-
-## New Features (v2.0)
-
-### Using the Email Reporting System
-1. Navigate to the "Email Reports" tab
-2. Configure report format (PDF/CSV/Excel)
-3. Set recipient email address
-4. Generate reports manually or enable auto-send
-5. View email delivery logs and status
-
-### Using the AI Chat Interface
-1. Go to the "AI Chat" tab
-2. Ask questions in natural language about your data:
-   - "Show me total sales for last month"
-   - "Which reseller has the highest sales?"
-   - "What are my top selling products?"
-3. View generated SQL queries (optional)
-4. Export query results
-
-### Setting Up External Dashboards
-1. Navigate to the "Analytics" tab
-2. Click "Add Dashboard"
-3. Configure dashboard settings:
-   - Dashboard name and type
-   - URL for embedding
-   - Authentication method
-4. View embedded dashboards within the application
-
-## API Endpoints (v2.0)
-
-### Email & Reporting
-- `POST /api/reports/email` - Send email with attachments
-- `POST /api/reports/generate` - Generate reports
-- `GET /api/email/logs` - Get email delivery logs
-
-### AI Chat
-- `POST /api/chat/query` - Send natural language query
-- `GET /api/chat/history/{session_id}` - Get chat history
-- `POST /api/chat/clear/{session_id}` - Clear chat session
-
-### Dashboard Management
-- `GET /api/dashboards/configs` - Get dashboard configurations
-- `POST /api/dashboards/configs` - Create dashboard config
-- `PUT /api/dashboards/configs/{id}` - Update dashboard config
-- `DELETE /api/dashboards/configs/{id}` - Delete dashboard config
-
-## Environment Variables
-
-Key environment variables for v2.0 features:
+Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
 
 ```bash
-# Email Configuration
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
-SMTP_FROM_EMAIL=your_email@gmail.com
-
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-4
-OPENAI_TEMPERATURE=0.1
-
-# Redis (for future queue implementation)
-REDIS_URL=redis://localhost:6379
+npm i supabase --save-dev
 ```
 
-## Security Features
+To install the beta release channel:
 
-- Row Level Security (RLS) policies for multi-tenant data isolation
-- Read-only database access for AI chat queries
-- SQL injection prevention and query validation
-- Secure email attachment handling
-- Authentication token management for external dashboards
+```bash
+npm i supabase@beta --save-dev
+```
+
+When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
+
+```
+NODE_OPTIONS=--no-experimental-fetch yarn add supabase
+```
+
+> **Note**
+For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
+
+<details>
+  <summary><b>macOS</b></summary>
+
+  Available via [Homebrew](https://brew.sh). To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To install the beta release channel:
+  
+  ```sh
+  brew install supabase/tap/supabase-beta
+  brew link --overwrite supabase-beta
+  ```
+  
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Windows</b></summary>
+
+  Available via [Scoop](https://scoop.sh). To install:
+
+  ```powershell
+  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+  scoop install supabase
+  ```
+
+  To upgrade:
+
+  ```powershell
+  scoop update supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Linux</b></summary>
+
+  Available via [Homebrew](https://brew.sh) and Linux packages.
+
+  #### via Homebrew
+
+  To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+
+  #### via Linux packages
+
+  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
+
+  ```sh
+  sudo apk add --allow-untrusted <...>.apk
+  ```
+
+  ```sh
+  sudo dpkg -i <...>.deb
+  ```
+
+  ```sh
+  sudo rpm -i <...>.rpm
+  ```
+
+  ```sh
+  sudo pacman -U <...>.pkg.tar.zst
+  ```
+</details>
+
+<details>
+  <summary><b>Other Platforms</b></summary>
+
+  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
+
+  ```sh
+  go install github.com/supabase/cli@latest
+  ```
+
+  Add a symlink to the binary in `$PATH` for easier access:
+
+  ```sh
+  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
+  ```
+
+  This works on other non-standard Linux distros.
+</details>
+
+<details>
+  <summary><b>Community Maintained Packages</b></summary>
+
+  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
+  To install in your working directory:
+
+  ```bash
+  pkgx install supabase
+  ```
+
+  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
+</details>
+
+### Run the CLI
+
+```bash
+supabase bootstrap
+```
+
+Or using npx:
+
+```bash
+npx supabase bootstrap
+```
+
+The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
+
+## Docs
+
+Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
+
+## Breaking changes
+
+We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
+
+However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
+
+## Developing
+
+To run from source:
+
+```sh
+# Go >= 1.22
+go run . help
+```

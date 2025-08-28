@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { MessageSquare, Send, Copy, Trash2, User, Bot, Lightbulb, Sparkles } from 'lucide-react'
+import { Send, Copy, User, Bot, Plus } from 'lucide-react'
 
 const ChatSection = () => {
   const [messages, setMessages] = useState([])
@@ -18,13 +18,21 @@ const ChatSection = () => {
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return
 
-    const currentMessage = inputMessage.trim() // Store current message
+    const currentMessage = inputMessage.trim()
     const userMessage = { type: 'user', content: currentMessage, timestamp: new Date() }
     
-    // Update state immediately
     setMessages(prev => [...prev, userMessage])
     setInputMessage('')
     setIsLoading(true)
+    
+    // Reset textarea height after sending
+    setTimeout(() => {
+      const textarea = document.querySelector('.chatgpt-input-field')
+      if (textarea) {
+        textarea.style.height = 'auto'
+        textarea.style.height = '52px' // Reset to minimum height
+      }
+    }, 0)
 
     try {
       const token = localStorage.getItem('access_token')
@@ -44,12 +52,10 @@ const ChatSection = () => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Clear invalid token and prompt re-login
           localStorage.removeItem('access_token')
           throw new Error('Your session has expired. Please refresh the page and login again.')
         }
         
-        // Try to get error details from response
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`
         try {
           const errorData = await response.json()
@@ -64,12 +70,10 @@ const ChatSection = () => {
       }
 
       const data = await response.json()
-      console.log('🤖 Chat API Response:', data) // Debug the full response structure
+      console.log('🤖 Chat API Response:', data)
       
-      // Show full response including any breakdown or detailed analysis
       let fullContent = data.answer || data.response || ''
       
-      // If there are additional details in the response, include them
       if (data.analysis) {
         fullContent += '\n\n--- Analysis ---\n' + data.analysis
       }
@@ -92,7 +96,6 @@ const ChatSection = () => {
         fullContent += '\n\n--- Data Insights ---\n' + data.data_insights
       }
       
-      // If we still only have the basic answer, try to show all available fields
       if (fullContent === (data.answer || data.response || '')) {
         const additionalFields = Object.keys(data).filter(key => 
           key !== 'answer' && key !== 'response' && key !== 'status' && 
@@ -126,107 +129,70 @@ const ChatSection = () => {
     }
   }
 
-  const clearChat = () => {
-    setMessages([])
+  const handleInputChange = (e) => {
+    setInputMessage(e.target.value)
+    
+    // Auto-resize textarea to fit content (ChatGPT style)
+    const textarea = e.target
+    textarea.style.height = 'auto'
+    
+    // Calculate new height with proper bounds
+    const newHeight = Math.min(Math.max(textarea.scrollHeight, 52), 200)
+    textarea.style.height = newHeight + 'px'
   }
 
   const copyMessage = (content) => {
     navigator.clipboard.writeText(content)
   }
 
-  const sampleQuestions = [
+  const welcomePrompts = [
     "What were our total sales in 2024?",
     "Which reseller has the highest revenue?",
     "Show me monthly sales trends",
-    "What are our top-selling products?",
-    "Compare Q1 vs Q2 performance",
-    "Which months had the best sales?"
+    "What are our top-selling products?"
   ]
 
   return (
-    <div className="chat-section">
-      <div className="chat-header">
-        <div className="header-content">
-          <div className="header-title">
-            <MessageSquare size={24} className="header-icon" />
-            <div>
-              <h2 className="text-heading">DATA CHAT</h2>
-              <p className="text-body">Ask questions about your sales data and get AI-powered insights</p>
+    <div className="chatgpt-container">
+      {/* Main Chat Area */}
+      <div className="chat-conversation">
+        {messages.length === 0 ? (
+          <div className="chat-welcome-simple">
+            <div className="welcome-content">
+              <h2>Ask about your sales data</h2>
+              <div className="welcome-prompts">
+                {welcomePrompts.map((prompt, index) => (
+                  <button
+                    key={index}
+                    className="welcome-prompt"
+                    onClick={() => setInputMessage(prompt)}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="chat-actions">
-          <button 
-            onClick={clearChat} 
-            className="btn-secondary" 
-            disabled={messages.length === 0}
-            title="Clear conversation"
-          >
-            <Trash2 size={16} />
-            <span className="text-uppercase">Clear Chat</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="chat-container">
-        <div className="chat-messages" style={{height: '100%', overflowY: 'auto', maxHeight: 'calc(100vh - 300px)'}}>
-          {messages.length === 0 && (
-            <div className="welcome-section">
-              <div className="welcome-message">
-                <div className="welcome-header">
-                  <Sparkles size={32} className="welcome-icon" />
-                  <div>
-                    <h3 className="text-subheading">WELCOME!</h3>
-                    <p className="text-body">I can help you analyze your sales data and provide insights</p>
+        ) : (
+          <div className="messages-container">
+            {messages.map((message, index) => (
+              <div key={index} className={`message-group ${message.type}`}>
+                <div className="message-avatar">
+                  <div className="avatar-circle">
+                    {message.type === 'user' ? (
+                      <User size={20} />
+                    ) : (
+                      <Bot size={20} />
+                    )}
                   </div>
-                </div>
-              </div>
-              
-              <div className="sample-questions">
-                <div className="questions-header">
-                  <Lightbulb size={20} />
-                  <h4 className="text-small-caps">TRY ASKING:</h4>
-                </div>
-                <div className="question-grid">
-                  {sampleQuestions.map((question, index) => (
-                    <button
-                      key={index}
-                      className="sample-question"
-                      onClick={() => setInputMessage(question)}
-                    >
-                      <span className="question-text">{question}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {messages.map((message, index) => (
-            <div key={index} className={`message ${message.type}`}>
-              <div className="message-avatar">
-                {message.type === 'user' ? (
-                  <User size={20} />
-                ) : (
-                  <Bot size={20} />
-                )}
-              </div>
-              <div className="message-body">
-                <div className="message-header">
-                  <span className="message-sender text-small-caps">
-                    {message.type === 'user' ? 'YOU' : 'AI ASSISTANT'}
-                  </span>
-                  <span className="message-time">
-                    {message.timestamp?.toLocaleTimeString()}
-                  </span>
                 </div>
                 <div className="message-content">
                   <div className="message-text">
-                    {message.content.split('\n').map((line, index) => (
-                      <div key={index} className="message-line">
+                    {message.content.split('\n').map((line, lineIndex) => (
+                      <div key={lineIndex}>
                         {line.startsWith('---') ? (
                           <div className="section-divider">
-                            <span className="section-title">{line.replace(/---/g, '').trim()}</span>
+                            <strong>{line.replace(/---/g, '').trim()}</strong>
                           </div>
                         ) : line.trim() ? (
                           <p>{line}</p>
@@ -236,63 +202,96 @@ const ChatSection = () => {
                       </div>
                     ))}
                   </div>
-                  {message.type === 'ai' && !isLoading && (
-                    <button 
-                      className="copy-btn"
-                      onClick={() => copyMessage(message.content)}
-                      title="Copy response"
-                    >
-                      <Copy size={14} />
-                    </button>
+                  {message.type === 'ai' && (
+                    <div className="message-actions">
+                      <button 
+                        className="copy-btn"
+                        onClick={() => copyMessage(message.content)}
+                        title="Copy"
+                      >
+                        <Copy size={16} />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
+            ))}
+          </div>
+        )}
+        
+        {isLoading && (
+          <div className="message-group ai">
+            <div className="message-avatar">
+              <div className="avatar-circle">
+                <Bot size={20} />
+              </div>
             </div>
-          ))}
-          
-          {isLoading && (
-            <div className="analyzing-container">
-              <div className="analyzing-indicator">
-                <div className="analyzing-text">
-                  <span className="analyzing-message">Analyzing your request...</span>
-                  <div className="analyzing-dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
+            <div className="message-content">
+              <div className="typing-indicator">
+                <div className="typing-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </div>
               </div>
             </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
 
-        <div className="chat-input-section">
-          <div className="input-container">
+      {/* ChatGPT-Style Fixed Bottom Input */}
+      <div className="chatgpt-input-container">
+        <div className="chatgpt-input-wrapper">
+          <div className="chatgpt-input-field-container">
+            {/* Plus Icon (Attachment/Options) */}
+            <button 
+              className="chatgpt-plus-icon" 
+              type="button"
+              title="Attach files"
+              aria-label="Attach files or add options"
+            >
+              <Plus size={20} />
+            </button>
+            
+            {/* Auto-resizing Textarea */}
             <textarea
               value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask a question about your sales data..."
+              onChange={handleInputChange}
+              onKeyDown={handleKeyPress}
+              placeholder="Ask anything"
               disabled={isLoading}
+              className="chatgpt-input-field"
               rows={1}
-              className="chat-input"
+              aria-label="Message input"
+              aria-describedby="input-help"
+              style={{
+                height: 'auto',
+                minHeight: '52px',
+                maxHeight: '200px'
+              }}
             />
+            
+            {/* Send Button */}
             <button 
               onClick={sendMessage} 
               disabled={isLoading || !inputMessage.trim()}
-              className="btn-primary"
-              title="Send message"
+              className="chatgpt-send-button"
+              type="button"
+              title={inputMessage.trim() ? "Send message" : "Enter a message to send"}
+              aria-label="Send message"
             >
-              <Send size={18} />
+              <Send size={16} />
             </button>
           </div>
-          <div className="input-hint">
-            <span className="text-small-caps">Press Enter to send • Shift+Enter for new line</span>
+          
+          {/* Hidden helper text for screen readers */}
+          <div id="input-help" className="sr-only">
+            Press Enter to send, Shift+Enter for new line
           </div>
         </div>
       </div>
-
     </div>
   )
 }

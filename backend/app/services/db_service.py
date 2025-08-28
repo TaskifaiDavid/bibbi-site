@@ -735,6 +735,8 @@ class DatabaseService:
                 return await self._query_dashboard_configs(query, params)
             elif "FROM sellout_entries2" in query:
                 return await self._query_sellout_entries(query, params)
+            elif "FROM ecommerce_orders" in query:
+                return await self._query_ecommerce_orders(query, params)
             elif "FROM uploads" in query:
                 return await self._query_uploads(query, params)
             elif "FROM information_schema" in query:
@@ -1672,6 +1674,276 @@ class DatabaseService:
             ]
         except Exception as e:
             print(f"ERROR in _query_schema_info: {str(e)}")
+            return []
+    
+    async def _query_ecommerce_orders(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
+        """Handle ecommerce_orders table queries for online sales data"""
+        try:
+            print(f"📊 EXECUTING ECOMMERCE QUERY: {query}")
+            print(f"📊 PARAMS: {params}")
+            
+            # For now, use similar logic to sellout_entries but for ecommerce_orders
+            return await self._execute_smart_ecommerce_query(query, params)
+            
+        except Exception as e:
+            print(f"❌ ERROR in _query_ecommerce_orders: {str(e)}")
+            print(f"🔍 Query was: {query}")
+            return []
+    
+    async def _execute_smart_ecommerce_query(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
+        """Execute ecommerce_orders queries with proper filtering"""
+        try:
+            # Extract user_id from params for filtering (if needed)
+            user_id = params[0] if params and len(params) > 0 else None
+            
+            print(f"🛒 Executing ecommerce query for user: {user_id or 'all'}")
+            
+            # Parse the SQL query to understand what we're trying to do
+            query_upper = query.upper()
+            
+            # Enhanced intent detection for ecommerce queries
+            if self._is_time_based_query(query_upper):
+                print("📅 DETECTED: Time-based ecommerce query")
+                return await self._handle_ecommerce_time_query(user_id)
+            elif self._is_product_analysis_query(query_upper):
+                print("🛍️ DETECTED: Product analysis ecommerce query")
+                return await self._handle_ecommerce_product_query(user_id)
+            elif self._is_simple_total_query(query_upper):
+                print("💰 DETECTED: Simple total ecommerce query")
+                return await self._handle_ecommerce_aggregation_query(user_id)
+            elif "GROUP BY" in query_upper:
+                return await self._handle_ecommerce_grouped_query(query, user_id)
+            else:
+                # Default to recent ecommerce data
+                return await self._handle_ecommerce_default_query(user_id)
+                
+        except Exception as e:
+            print(f"❌ ERROR in smart ecommerce query execution: {str(e)}")
+            return []
+    
+    async def _handle_ecommerce_aggregation_query(self, user_id: str) -> List[Dict[str, Any]]:
+        """Handle aggregation queries for ecommerce data"""
+        try:
+            result = self.supabase.table("ecommerce_orders")\
+                .select("sales_eur, quantity, country")\
+                .execute()
+            
+            if result.data:
+                total_eur = sum(float(row.get('sales_eur', 0) or 0) for row in result.data)
+                total_quantity = sum(int(row.get('quantity', 0) or 0) for row in result.data)
+                countries = set(row.get('country') for row in result.data if row.get('country'))
+                
+                return [{
+                    "total_sales_eur": total_eur,
+                    "total_quantity": total_quantity,
+                    "total_orders": len(result.data),
+                    "countries_served": len(countries)
+                }]
+            
+            return [{"total_sales_eur": 0, "total_quantity": 0, "total_orders": 0, "countries_served": 0}]
+            
+        except Exception as e:
+            print(f"❌ Error in ecommerce aggregation query: {str(e)}")
+            return []
+    
+    async def _handle_ecommerce_time_query(self, user_id: str) -> List[Dict[str, Any]]:
+        """Handle time-based queries for ecommerce data"""
+        try:
+            result = self.supabase.table("ecommerce_orders")\
+                .select("order_date, sales_eur, quantity")\
+                .order("order_date", desc=True)\
+                .limit(1000)\
+                .execute()
+            
+            if result.data:
+                # Group by month from order_date
+                monthly_stats = {}
+                for row in result.data:
+                    order_date = row.get('order_date', '')
+                    if order_date:
+                        try:
+                            from datetime import datetime
+                            date_obj = datetime.strptime(order_date, '%Y-%m-%d')
+                            month_key = f"{date_obj.year}-{date_obj.month:02d}"
+                            
+                            if month_key not in monthly_stats:
+                                monthly_stats[month_key] = {
+                                    'year': date_obj.year,
+                                    'month': date_obj.month,
+                                    'total_sales_eur': 0,
+                                    'total_quantity': 0,
+                                    'order_count': 0
+                                }
+                            
+                            monthly_stats[month_key]['total_sales_eur'] += float(row.get('sales_eur', 0) or 0)
+                            monthly_stats[month_key]['total_quantity'] += int(row.get('quantity', 0) or 0)
+                            monthly_stats[month_key]['order_count'] += 1
+                        except:
+                            continue
+                
+                result_list = list(monthly_stats.values())
+                result_list.sort(key=lambda x: (x['year'], x['month']), reverse=True)
+                
+                return result_list[:12]  # Last 12 months
+            
+            return []
+            
+        except Exception as e:
+            print(f"❌ Error in ecommerce time query: {str(e)}")
+            return []
+    
+    async def _handle_ecommerce_product_query(self, user_id: str) -> List[Dict[str, Any]]:
+        """Handle product analysis queries for ecommerce data"""
+        try:
+            result = self.supabase.table("ecommerce_orders")\
+                .select("functional_name, product_name, sales_eur, quantity")\
+                .execute()
+            
+            if result.data:
+                product_stats = {}
+                for row in result.data:
+                    product = row.get('functional_name') or row.get('product_name', 'Unknown')
+                    if product not in product_stats:
+                        product_stats[product] = {
+                            'total_sales_eur': 0,
+                            'total_quantity': 0,
+                            'order_count': 0
+                        }
+                    
+                    product_stats[product]['total_sales_eur'] += float(row.get('sales_eur', 0) or 0)
+                    product_stats[product]['total_quantity'] += int(row.get('quantity', 0) or 0)
+                    product_stats[product]['order_count'] += 1
+                
+                result_list = []
+                for product, stats in product_stats.items():
+                    result_list.append({
+                        'functional_name': product,
+                        'product_name': product,
+                        'total_sales_eur': stats['total_sales_eur'],
+                        'total_quantity': stats['total_quantity'],
+                        'order_count': stats['order_count']
+                    })
+                
+                result_list.sort(key=lambda x: x['total_sales_eur'], reverse=True)
+                return result_list[:20]  # Top 20 products
+            
+            return []
+            
+        except Exception as e:
+            print(f"❌ Error in ecommerce product query: {str(e)}")
+            return []
+    
+    async def _handle_ecommerce_grouped_query(self, query: str, user_id: str) -> List[Dict[str, Any]]:
+        """Handle GROUP BY queries for ecommerce data"""
+        try:
+            query_upper = query.upper()
+            
+            if "COUNTRY" in query_upper:
+                return await self._group_ecommerce_by_country(user_id)
+            elif "FUNCTIONAL_NAME" in query_upper or "PRODUCT" in query_upper:
+                return await self._handle_ecommerce_product_query(user_id)
+            elif "UTM_SOURCE" in query_upper:
+                return await self._group_ecommerce_by_utm_source(user_id)
+            else:
+                return await self._handle_ecommerce_default_query(user_id)
+                
+        except Exception as e:
+            print(f"❌ Error in ecommerce grouped query: {str(e)}")
+            return []
+    
+    async def _group_ecommerce_by_country(self, user_id: str) -> List[Dict[str, Any]]:
+        """Group ecommerce data by country"""
+        try:
+            result = self.supabase.table("ecommerce_orders")\
+                .select("country, sales_eur, quantity")\
+                .execute()
+            
+            if result.data:
+                country_stats = {}
+                for row in result.data:
+                    country = row.get('country', 'Unknown')
+                    if country not in country_stats:
+                        country_stats[country] = {
+                            'total_sales_eur': 0,
+                            'total_quantity': 0,
+                            'order_count': 0
+                        }
+                    
+                    country_stats[country]['total_sales_eur'] += float(row.get('sales_eur', 0) or 0)
+                    country_stats[country]['total_quantity'] += int(row.get('quantity', 0) or 0)
+                    country_stats[country]['order_count'] += 1
+                
+                result_list = []
+                for country, stats in country_stats.items():
+                    result_list.append({
+                        'country': country,
+                        'total_sales_eur': stats['total_sales_eur'],
+                        'total_quantity': stats['total_quantity'],
+                        'order_count': stats['order_count']
+                    })
+                
+                result_list.sort(key=lambda x: x['total_sales_eur'], reverse=True)
+                return result_list
+            
+            return []
+            
+        except Exception as e:
+            print(f"❌ Error grouping ecommerce by country: {str(e)}")
+            return []
+    
+    async def _group_ecommerce_by_utm_source(self, user_id: str) -> List[Dict[str, Any]]:
+        """Group ecommerce data by UTM source"""
+        try:
+            result = self.supabase.table("ecommerce_orders")\
+                .select("utm_source, sales_eur, quantity")\
+                .execute()
+            
+            if result.data:
+                utm_stats = {}
+                for row in result.data:
+                    utm_source = row.get('utm_source', 'Direct')
+                    if utm_source not in utm_stats:
+                        utm_stats[utm_source] = {
+                            'total_sales_eur': 0,
+                            'total_quantity': 0,
+                            'order_count': 0
+                        }
+                    
+                    utm_stats[utm_source]['total_sales_eur'] += float(row.get('sales_eur', 0) or 0)
+                    utm_stats[utm_source]['total_quantity'] += int(row.get('quantity', 0) or 0)
+                    utm_stats[utm_source]['order_count'] += 1
+                
+                result_list = []
+                for utm_source, stats in utm_stats.items():
+                    result_list.append({
+                        'utm_source': utm_source,
+                        'total_sales_eur': stats['total_sales_eur'],
+                        'total_quantity': stats['total_quantity'],
+                        'order_count': stats['order_count']
+                    })
+                
+                result_list.sort(key=lambda x: x['total_sales_eur'], reverse=True)
+                return result_list
+            
+            return []
+            
+        except Exception as e:
+            print(f"❌ Error grouping ecommerce by UTM source: {str(e)}")
+            return []
+    
+    async def _handle_ecommerce_default_query(self, user_id: str) -> List[Dict[str, Any]]:
+        """Handle default ecommerce queries"""
+        try:
+            result = self.supabase.table("ecommerce_orders")\
+                .select("*")\
+                .order("order_date", desc=True)\
+                .limit(100)\
+                .execute()
+            
+            return result.data if result.data else []
+            
+        except Exception as e:
+            print(f"❌ Error in default ecommerce query: {str(e)}")
             return []
     
     # ============ DIRECT DASHBOARD METHODS ============

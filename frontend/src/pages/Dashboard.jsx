@@ -47,51 +47,41 @@ function Dashboard({ user, onLogout }) {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <div className="header-left">
-          <div className="brand-container">
-            <div className="brand-info">
-              <h1 className="text-heading">BIBBI</h1>
-              <span className="brand-subtitle text-small-caps">Data Analytics Platform</span>
-            </div>
-          </div>
-          
-          <nav className="dashboard-nav">
-            {navigationItems.map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  key={item.id}
-                  className={`nav-item ${activeView === item.id ? 'active' : ''}`}
-                  onClick={() => setActiveView(item.id)}
-                  title={item.description}
-                >
-                  <Icon size={16} className="nav-icon" />
-                  <span className="nav-label text-uppercase">{item.label}</span>
-                </button>
-              )
-            })}
-          </nav>
+        <div className="dashboard-brand">
+          <h1>BIBBI</h1>
+          <div className="dashboard-subtitle">Data Analytics Platform</div>
         </div>
         
-        <div className="header-right">
-          <div className="user-menu">
-            <div className="user-info">
-              <User size={16} className="user-icon" />
-              <div className="user-details">
-                <span className="user-email">{user?.email || 'Unknown User'}</span>
-                <span className="user-role text-small-caps">Administrator</span>
-              </div>
-            </div>
-            <button onClick={handleLogout} className="logout-btn" title="Sign out">
-              <LogOut size={16} />
-              <span className="text-uppercase">Sign Out</span>
-            </button>
+        <nav className="dashboard-nav">
+          {navigationItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <button
+                key={item.id}
+                className={`dashboard-nav-item ${activeView === item.id ? 'active' : ''}`}
+                onClick={() => setActiveView(item.id)}
+                title={item.description}
+              >
+                <Icon size={16} />
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
+        </nav>
+        
+        <div className="dashboard-user">
+          <div className="dashboard-user-info">
+            <div className="dashboard-user-email">{user?.email || 'Unknown User'}</div>
+            <div className="dashboard-user-role">Administrator</div>
           </div>
+          <button onClick={handleLogout} className="btn btn-ghost" title="Sign out">
+            <LogOut size={16} />
+            <span>Sign Out</span>
+          </button>
         </div>
       </header>
 
-      <div className={`dashboard-main ${activeView === 'analytics' ? 'analytics-view' : ''}`}>
-        <main className={`dashboard-content ${activeView === 'analytics' ? 'analytics-view' : ''}`}>
+      <main className="dashboard-main">
         {activeView === 'upload' ? (
           <Upload />
         ) : activeView === 'status' ? (
@@ -103,8 +93,7 @@ function Dashboard({ user, onLogout }) {
         ) : (
           <Upload />
         )}
-        </main>
-      </div>
+      </main>
     </div>
   )
 }

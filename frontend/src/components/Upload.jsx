@@ -118,46 +118,33 @@ function Upload() {
   }
 
   return (
-    <div className="upload-container">
+    <div className="upload-section">
       <div className="upload-header">
-        <div className="header-content">
-          <h2 className="text-heading">
-            UPLOAD DATA FILES
-          </h2>
-          <p className="text-body">
-            Upload Excel files to process, clean, and analyze your data automatically
-          </p>
-        </div>
+        <h2>Upload Data Files</h2>
+        <p>Upload Excel files to process, clean, and analyze your data automatically</p>
       </div>
       
       <div className="upload-mode-selector">
-        <div className="selector-header">
-          <h3 className="text-subheading">
-            SELECT UPLOAD MODE
-          </h3>
-          <p className="text-body">
-            Choose whether to process one file or multiple files at once
-          </p>
-        </div>
-        <div className="mode-toggle-group">
+        <h3>Select Upload Mode</h3>
+        <div className="upload-mode-buttons">
           <button 
-            className={`mode-toggle ${uploadMode === 'single' ? 'active' : ''}`} 
+            className={`upload-mode-button ${uploadMode === 'single' ? 'active' : ''}`} 
             onClick={() => setUploadMode('single')}
           >
-            <File size={20} />
-            <div className="toggle-content">
-              <span className="toggle-label text-uppercase">Single File Upload</span>
-              <span className="toggle-desc">Perfect for individual reports or one-off data processing</span>
+            <File size={24} />
+            <div className="upload-mode-content">
+              <h4>Single File Upload</h4>
+              <p>Perfect for individual reports or one-off data processing</p>
             </div>
           </button>
           <button 
-            className={`mode-toggle ${uploadMode === 'multiple' ? 'active' : ''}`} 
+            className={`upload-mode-button ${uploadMode === 'multiple' ? 'active' : ''}`} 
             onClick={() => setUploadMode('multiple')}
           >
-            <FileSpreadsheet size={20} />
-            <div className="toggle-content">
-              <span className="toggle-label text-uppercase">Multiple Files Upload</span>
-              <span className="toggle-desc">Batch process multiple files for efficiency and analysis</span>
+            <FileSpreadsheet size={24} />
+            <div className="upload-mode-content">
+              <h4>Multiple Files Upload</h4>
+              <p>Batch process multiple files for efficiency and analysis</p>
             </div>
           </button>
         </div>
@@ -180,27 +167,35 @@ function Upload() {
           id="file-input"
         />
         
-        <label htmlFor="file-input" className="upload-label">
+        <label htmlFor="file-input" style={{ cursor: 'pointer', display: 'block', width: '100%' }}>
           {files.length > 0 ? (
-            <div className="upload-success">
-              <CheckCircle size={48} className="success-icon" />
-              <div className="success-content">
-                <h4 className="text-subheading">{files.length} FILE{files.length > 1 ? 'S' : ''} SELECTED</h4>
-                <p className="text-body">Ready to upload and process</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }}>
+              <CheckCircle size={48} style={{ color: 'var(--success-600)' }} />
+              <div style={{ textAlign: 'center' }}>
+                <h4 style={{ marginBottom: 'var(--space-2)', color: 'var(--success-700)' }}>
+                  {files.length} FILE{files.length > 1 ? 'S' : ''} SELECTED
+                </h4>
+                <p>Ready to upload and process</p>
                 {uploadMode === 'single' && (
-                  <span className="file-info text-small-caps">Size: {(files[0].size / 1024 / 1024).toFixed(2)} MB</span>
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--neutral-500)', marginTop: 'var(--space-2)' }}>
+                    Size: {(files[0].size / 1024 / 1024).toFixed(2)} MB
+                  </p>
                 )}
               </div>
             </div>
           ) : (
-            <div className="upload-prompt">
-              <UploadIcon size={48} className="upload-icon" />
-              <div className="prompt-content">
-                <h4 className="text-subheading">DROP YOUR EXCEL FILE{uploadMode === 'multiple' ? 'S' : ''} HERE</h4>
-                <p className="text-body">or <span className="browse-link">click to browse</span></p>
-                <div className="upload-info">
-                  <span className="supported-format text-small-caps">Supports: .xlsx files only</span>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }}>
+              <UploadIcon className="upload-icon" />
+              <div style={{ textAlign: 'center' }}>
+                <h4 className="upload-text">
+                  Drop your Excel file{uploadMode === 'multiple' ? 's' : ''} here
+                </h4>
+                <p className="upload-subtext">
+                  or <span style={{ color: 'var(--primary-600)', fontWeight: 'var(--font-medium)' }}>click to browse</span>
+                </p>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--neutral-500)', marginTop: 'var(--space-2)' }}>
+                  Supports: .xlsx files only
+                </p>
               </div>
             </div>
           )}
@@ -209,116 +204,153 @@ function Upload() {
 
       {/* File List */}
       {files.length > 0 && (
-        <div className="selected-files">
-          <div className="files-header">
-            <h4 className="text-subheading">SELECTED FILES</h4>
-            <span className="files-count text-small-caps">{files.length} file{files.length > 1 ? 's' : ''}</span>
+        <div className="card" style={{ marginTop: 'var(--space-8)' }}>
+          <div className="card-header">
+            <div className="flex items-center justify-between">
+              <h4>Selected Files</h4>
+              <span className="badge badge-primary">{files.length} file{files.length > 1 ? 's' : ''}</span>
+            </div>
           </div>
-          <div className="files-list">
-            {files.map((file, index) => (
-              <div key={index} className="file-card">
-                <div className="file-info">
-                  <FileSpreadsheet size={20} className="file-icon" />
-                  <div className="file-details">
-                    <span className="file-name">{file.name}</span>
-                    <span className="file-size">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+          <div className="card-body">
+            <div className="grid gap-4">
+              {files.map((file, index) => (
+                <div key={index} className="card">
+                  <div className="card-body">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <FileSpreadsheet size={20} style={{ color: 'var(--primary-600)' }} />
+                        <div>
+                          <div style={{ fontWeight: 'var(--font-medium)', marginBottom: 'var(--space-1)' }}>
+                            {file.name}
+                          </div>
+                          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--neutral-500)' }}>
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                        </div>
+                      </div>
+                      {uploadMode === 'multiple' && (
+                        <button 
+                          className="btn btn-ghost btn-sm" 
+                          onClick={() => removeFile(index)}
+                          disabled={uploading}
+                          title="Remove file"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-                {uploadMode === 'multiple' && (
-                  <button 
-                    className="remove-file-btn" 
-                    onClick={() => removeFile(index)}
-                    disabled={uploading}
-                    title="Remove file"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="error-banner">
+        <div className="alert alert-error" style={{ marginTop: 'var(--space-8)' }}>
           <AlertCircle size={20} />
           <span>{error}</span>
         </div>
       )}
 
       {files.length > 0 && (
-        <div className="upload-actions">
-          <div className="action-info">
-            <h4 className="text-subheading">
-              READY TO PROCESS
-            </h4>
-            <p className="text-body">
+        <div className="card" style={{ marginTop: 'var(--space-8)' }}>
+          <div className="card-header">
+            <h4>Ready to Process</h4>
+            <p style={{ margin: 0 }}>
               {files.length} file{files.length > 1 ? 's' : ''} selected • Click to start data processing
             </p>
           </div>
-          <button
-            onClick={handleUpload}
-            disabled={uploading}
-            className={`btn-primary btn-large text-uppercase ${uploading ? 'btn-loading' : ''}`}
-          >
-            {uploading ? 'Processing Files...' : (
-              <>
-                <UploadIcon size={20} />
-                Start Processing
-              </>
-            )}
-          </button>
+          <div className="card-footer">
+            <div className="flex justify-end">
+              <button
+                onClick={handleUpload}
+                disabled={uploading}
+                className={`btn btn-primary btn-lg ${uploading ? 'loading' : ''}`}
+              >
+                {uploading ? (
+                  <>
+                    <div className="spinner" />
+                    Processing Files...
+                  </>
+                ) : (
+                  <>
+                    <UploadIcon size={20} />
+                    Start Processing
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {uploadResults.length > 0 && (
-        <div className="upload-results">
-          <div className="results-header">
-            <div className="success-icon">
-              <CheckCircle size={32} />
-            </div>
-            <div className="results-content">
-              <h3 className="text-heading" style={{color: 'var(--success-600)'}}>
-                FILES SUCCESSFULLY UPLOADED
-              </h3>
-              <p className="text-body">
-                {uploadResults.length} file{uploadResults.length > 1 ? 's' : ''} uploaded and queued for processing
-              </p>
+        <div className="card" style={{ marginTop: 'var(--space-8)' }}>
+          <div className="card-header">
+            <div className="flex items-center gap-4">
+              <div style={{ 
+                width: '3rem', 
+                height: '3rem', 
+                borderRadius: 'var(--radius-full)', 
+                background: 'var(--success-100)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CheckCircle size={24} style={{ color: 'var(--success-600)' }} />
+              </div>
+              <div>
+                <h3 style={{ color: 'var(--success-700)', marginBottom: 'var(--space-2)' }}>
+                  Files Successfully Uploaded
+                </h3>
+                <p style={{ margin: 0 }}>
+                  {uploadResults.length} file{uploadResults.length > 1 ? 's' : ''} uploaded and queued for processing
+                </p>
+              </div>
             </div>
           </div>
-          <div className="results-grid">
-            {uploadResults.map((result, index) => (
-              <div key={index} className="result-card">
-                <div className="result-icon">
-                  <FileSpreadsheet size={20} />
-                </div>
-                <div className="result-details">
-                  <div className="result-filename text-body">{result.filename}</div>
-                  <div className="result-meta">
-                    <span className="status-badge success text-small-caps">{result.status}</span>
-                    <span className="result-id text-small-caps">ID: {result.id}</span>
+          <div className="card-body">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3">
+              {uploadResults.map((result, index) => (
+                <div key={index} className="card">
+                  <div className="card-body">
+                    <div className="flex items-center gap-3">
+                      <FileSpreadsheet size={20} style={{ color: 'var(--primary-600)' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'var(--font-medium)', marginBottom: 'var(--space-1)' }}>
+                          {result.filename}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="badge badge-success">{result.status}</span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--neutral-500)' }}>
+                            ID: {result.id}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="results-footer">
-            <div className="next-steps">
-              <h4 className="text-subheading">
-                WHAT HAPPENS NEXT?
-              </h4>
-              <p className="text-body">
-                Your files are now being processed automatically. Monitor progress in the <strong>Processing Status</strong> section.
-              </p>
+              ))}
             </div>
-            <button 
-              onClick={() => window.location.hash = '#status'}
-              className="btn-secondary text-uppercase"
-            >
-              <Activity size={16} />
-              View Processing Status
-            </button>
+          </div>
+          <div className="card-footer">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 style={{ marginBottom: 'var(--space-2)' }}>What happens next?</h4>
+                <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--neutral-600)' }}>
+                  Your files are being processed automatically. Monitor progress in the <strong>Processing Status</strong> section.
+                </p>
+              </div>
+              <button 
+                onClick={() => window.location.hash = '#status'}
+                className="btn btn-secondary"
+              >
+                <Activity size={16} />
+                View Status
+              </button>
+            </div>
           </div>
         </div>
       )}

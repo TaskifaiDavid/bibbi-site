@@ -114,7 +114,7 @@ class SupabaseSQLDatabase:
         self.db_service = DatabaseService()
         # Mock database info for LangChain
         self._sample_rows_in_table_info = 3
-        self._include_tables = ['sellout_entries2', 'uploads', 'products']
+        self._include_tables = ['sellout_entries2', 'ecommerce_orders', 'uploads', 'products']
     
     def run(self, command: str, fetch: str = "all"):
         """Execute SQL command using Supabase REST API with security validation"""
@@ -176,6 +176,9 @@ class SupabaseSQLDatabase:
             r'^SELECT\s+.*\s+FROM\s+sellout_entries2\b',
             r'^SELECT\s+\*\s+FROM\s+sellout_entries2\b',
             r'^SELECT\s+COUNT\(\*\)\s+FROM\s+sellout_entries2\b',
+            r'^SELECT\s+.*\s+FROM\s+ecommerce_orders\b',
+            r'^SELECT\s+\*\s+FROM\s+ecommerce_orders\b',
+            r'^SELECT\s+COUNT\(\*\)\s+FROM\s+ecommerce_orders\b',
             r'^SELECT\s+1\s*$',
             r'^SELECT\s+1\s+AS\s+TEST\s*$',
             r'^SELECT\s+.*\s+FROM\s+products\b',
@@ -193,9 +196,9 @@ class SupabaseSQLDatabase:
     async def _execute_supabase_query(self, command: str):
         """Execute query using DatabaseService (same as Excel cleaning)"""
         try:
-            # For demo purposes, return some sample data about sales
+            # Route queries to appropriate tables
             if "sellout_entries2" in command.lower():
-                # Get comprehensive sales data for accurate multi-reseller analysis
+                # Get comprehensive wholesale/offline sales data
                 result = self.db_service.supabase.table("sellout_entries2")\
                     .select("functional_name, reseller, sales_eur, quantity, month, year")\
                     .order("created_at", desc=True)\
@@ -203,10 +206,21 @@ class SupabaseSQLDatabase:
                     .execute()
                 
                 if result.data:
-                    # Format as table-like response for LangChain
                     return str(result.data)
                 else:
-                    return "No data found"
+                    return "No offline sales data found"
+            elif "ecommerce_orders" in command.lower():
+                # Get comprehensive online sales data
+                result = self.db_service.supabase.table("ecommerce_orders")\
+                    .select("functional_name, product_name, sales_eur, quantity, order_date, country, city, utm_source, device_type")\
+                    .order("order_date", desc=True)\
+                    .limit(5000)\
+                    .execute()
+                
+                if result.data:
+                    return str(result.data)
+                else:
+                    return "No online sales data found"
             else:
                 return "Query executed successfully"
                 
@@ -218,7 +232,7 @@ class SupabaseSQLDatabase:
         """Return table schema information"""
         # Note: table_names parameter maintained for compatibility but not currently used
         return """
-        Table: sellout_entries2
+        Table: sellout_entries2 (Offline/Wholesale Sales)
         Columns:
         - functional_name (text): Product name
         - reseller (text): Reseller/customer name
@@ -229,8 +243,28 @@ class SupabaseSQLDatabase:
         - product_ean (text): Product EAN code
         - currency (text): Currency code
         
+        Table: ecommerce_orders (Online Sales)
+        Columns:
+        - order_id (text): Unique order identifier
+        - product_ean (text): Product EAN code
+        - order_date (date): Date of order
+        - quantity (numeric): Quantity ordered
+        - sales_eur (numeric): Sales amount in EUR
+        - country (text): Customer country
+        - functional_name (text): Product name
+        - product_name (text): Product display name
+        - city (text): Customer city
+        - utm_source (text): Marketing source
+        - utm_medium (text): Marketing medium
+        - utm_campaign (text): Marketing campaign
+        - device_type (text): Customer device type
+        - reseller (text): Always 'Online' for ecommerce
+        - cost_of_goods (numeric): Product cost
+        - stripe_fee (numeric): Payment processing fee
+        
         Sample data:
-        functional_name='Product A', reseller='Customer 1', sales_eur=1500.00, quantity=10, month=3, year=2024
+        sellout_entries2: functional_name='Product A', reseller='Wholesale Customer', sales_eur=1500.00, quantity=10
+        ecommerce_orders: functional_name='Product A', product_name='Product A - 50ml', sales_eur=49.99, quantity=1, country='DE', utm_source='google'
         """
     
     @property
@@ -288,78 +322,115 @@ class SupabaseChatAgent:
                 logger.info(f"📅 Months filter detected: {months_filter}")
             
             # For comparison queries, we need broader data - don't limit by year
-            is_comparison = intent == "COMPARISON" or any(word in user_message.lower() for word in ['compare', 'vs', 'versus'])
+            is_comparison = intent in ["COMPARISON", "SALES_COMPARISON"] or any(word in user_message.lower() for word in ['compare', 'vs', 'versus'])
             
-            # Build query to access ALL sellout_entries2 data (no user filtering)
-            if user_id:
-                # Query ALL data from sellout_entries2 regardless of upload source
-                query = self.db_service.supabase.table("sellout_entries2")\
+            # Query data based on detected intent
+            if self.debug_mode:
+                logger.info(f"🎯 Detected intent: {intent}")
+            
+            # Get data based on sales channel intent
+            offline_data = []
+            online_data = []
+            
+            # Determine which data to fetch based on intent
+            fetch_offline = intent in ["OFFLINE_SALES", "COMBINED_SALES", "SALES_COMPARISON"] or intent in ["TIME_ANALYSIS", "RESELLER_ANALYSIS", "PRODUCT_ANALYSIS", "TOTAL_SUMMARY", "COMPARISON", "GENERAL_INQUIRY"]
+            fetch_online = intent in ["ONLINE_SALES", "COMBINED_SALES", "SALES_COMPARISON"]
+            
+            if fetch_offline:
+                if self.debug_mode:
+                    logger.info("📊 Fetching offline/wholesale sales data (sellout_entries2)...")
+                
+                offline_query = self.db_service.supabase.table("sellout_entries2")\
                     .select("functional_name, reseller, sales_eur, quantity, month, year, product_ean, currency")
                 
-                # Add year filter if detected and not a comparison query
+                # Apply time filters if not a comparison query
                 if years_filter and not is_comparison:
                     if len(years_filter) == 1:
-                        query = query.eq("year", years_filter[0])
-                        if self.debug_mode:
-                            logger.info(f"📅 Applied single year filter: {years_filter[0]}")
+                        offline_query = offline_query.eq("year", years_filter[0])
                     else:
-                        query = query.in_("year", years_filter)
-                        if self.debug_mode:
-                            logger.info(f"📅 Applied multiple year filter: {years_filter}")
-                elif is_comparison and self.debug_mode:
-                    logger.info("🔄 Comparison query detected - fetching all years for analysis")
+                        offline_query = offline_query.in_("year", years_filter)
                 
-                # Add month filter if detected
                 if months_filter:
                     if len(months_filter) == 1:
-                        query = query.eq("month", months_filter[0])
-                        if self.debug_mode:
-                            logger.info(f"📅 Applied single month filter: {months_filter[0]}")
+                        offline_query = offline_query.eq("month", months_filter[0])
                     else:
-                        query = query.in_("month", months_filter)
-                        if self.debug_mode:
-                            logger.info(f"📅 Applied multiple month filter: {months_filter}")
+                        offline_query = offline_query.in_("month", months_filter)
                 
-                result = query.order("created_at", desc=True).limit(5000).execute()
+                offline_result = offline_query.order("created_at", desc=True).limit(5000).execute()
+                offline_data = offline_result.data if offline_result.data else []
                 
                 if self.debug_mode:
-                    logger.info(f"✅ Found {len(result.data) if result.data else 0} total records from ALL sellout_entries2 data (years: {years_filter or 'all'}, months: {months_filter or 'all'})")
-                    if result.data and len(result.data) >= 5000:
-                        logger.warning("⚠️ Hit 5000 record limit - consider increasing for complete 10x growth analysis")
+                    logger.info(f"✅ Found {len(offline_data)} offline sales records")
+            
+            if fetch_online:
+                if self.debug_mode:
+                    logger.info("🌐 Fetching online sales data (ecommerce_orders)...")
+                
+                online_query = self.db_service.supabase.table("ecommerce_orders")\
+                    .select("functional_name, product_name, sales_eur, quantity, order_date, country, city, utm_source, utm_medium, utm_campaign, device_type, reseller, product_ean")
+                
+                # Apply date filters for online data (using order_date instead of month/year)
+                if years_filter and not is_comparison:
+                    for year in years_filter:
+                        online_query = online_query.gte("order_date", f"{year}-01-01").lte("order_date", f"{year}-12-31")
+                
+                online_result = online_query.order("order_date", desc=True).limit(5000).execute()
+                online_data = online_result.data if online_result.data else []
+                
+                if self.debug_mode:
+                    logger.info(f"✅ Found {len(online_data)} online sales records")
+            
+            # Combine data based on intent
+            if intent == "ONLINE_SALES":
+                clean_data = online_data
+                data_source = "online"
+            elif intent == "OFFLINE_SALES":
+                clean_data = offline_data  
+                data_source = "offline"
+            elif intent in ["COMBINED_SALES", "SALES_COMPARISON"]:
+                # Normalize online data to match offline structure for combined analysis
+                normalized_online = []
+                for row in online_data:
+                    # Extract year and month from order_date
+                    order_date = row.get('order_date', '')
+                    year, month = None, None
+                    if order_date:
+                        try:
+                            from datetime import datetime
+                            date_obj = datetime.strptime(order_date, '%Y-%m-%d')
+                            year = date_obj.year
+                            month = date_obj.month
+                        except:
+                            pass
+                    
+                    normalized_row = {
+                        'functional_name': row.get('functional_name') or row.get('product_name'),
+                        'reseller': 'Online',
+                        'sales_eur': row.get('sales_eur'),
+                        'quantity': row.get('quantity'), 
+                        'year': year,
+                        'month': month,
+                        'product_ean': row.get('product_ean'),
+                        'currency': 'EUR',
+                        'channel': 'online',
+                        'country': row.get('country'),
+                        'utm_source': row.get('utm_source'),
+                        'device_type': row.get('device_type')
+                    }
+                    normalized_online.append(normalized_row)
+                
+                # Add channel identifier to offline data
+                for row in offline_data:
+                    row['channel'] = 'offline'
+                
+                clean_data = offline_data + normalized_online
+                data_source = "combined"
             else:
-                # Fallback to recent data if no user ID
-                query = self.db_service.supabase.table("sellout_entries2")\
-                    .select("functional_name, reseller, sales_eur, quantity, month, year, product_ean, currency")
-                
-                # Add year filter if detected and not a comparison query
-                if years_filter and not is_comparison:
-                    if len(years_filter) == 1:
-                        query = query.eq("year", years_filter[0])
-                    else:
-                        query = query.in_("year", years_filter)
-                    if self.debug_mode:
-                        logger.info(f"📅 Applied year filter to fallback query: {years_filter}")
-                
-                # Add month filter if detected
-                if months_filter:
-                    if len(months_filter) == 1:
-                        query = query.eq("month", months_filter[0])
-                    else:
-                        query = query.in_("month", months_filter)
-                    if self.debug_mode:
-                        logger.info(f"📅 Applied month filter to fallback query: {months_filter}")
-                
-                result = query.order("created_at", desc=True).limit(5000).execute()
-                
-                if self.debug_mode:
-                    logger.warning("⚠️ No user ID provided, using recent data fallback")
-                    logger.info(f"📊 Found {len(result.data) if result.data else 0} total records (years: {years_filter or 'all'}, months: {months_filter or 'all'})")
-                    if result.data and len(result.data) >= 5000:
-                        logger.warning("⚠️ Hit 5000 record limit in fallback mode - consider increasing for complete 10x growth analysis")
+                # Default to offline data for backward compatibility
+                clean_data = offline_data
+                data_source = "offline"
             
-            if result.data:
-                # Use the data directly (no uploads join to clean)
-                clean_data = result.data
+            if clean_data:
                 
                 if self.debug_mode:
                     logger.info(f"🧹 Cleaned data: {len(clean_data)} records")
@@ -402,8 +473,8 @@ class SupabaseChatAgent:
                             context_parts.append(f"Assistant: {msg.content[:200]}...")
                     conversation_context = f"\n\nConversation Context (Recent):\n" + "\n".join(context_parts)
 
-                # Create specialized prompt for comparison queries
-                if intent == "COMPARISON":
+                # Create specialized prompts based on intent
+                if intent in ["COMPARISON", "SALES_COMPARISON"]:
                     prompt = f"""
                     You are an expert sales data analyst with conversation memory. Based on the following sales data and conversation context, perform a detailed comparison analysis.
                     
@@ -427,14 +498,73 @@ class SupabaseChatAgent:
                     4. Calculate exact differences and percentage changes using TOTAL aggregated amounts
                     5. Provide clear before/after or A vs B comparison format with complete dataset totals
                     6. Include business insights about the comparison across all sales channels
+                    7. If comparing online vs offline sales, highlight channel-specific insights and performance
                     
-                    Instructions: Ensure all calculations represent the complete dataset across all resellers.
+                    Instructions: Ensure all calculations represent the complete dataset across all channels.
+                    """
+                elif intent == "ONLINE_SALES":
+                    prompt = f"""
+                    You are an expert ecommerce data analyst with conversation memory. Based on the following online sales data and conversation context, provide detailed analysis focused on digital commerce metrics.
+                    
+                    FOCUS AREAS FOR ONLINE SALES:
+                    - Ecommerce performance and conversion insights
+                    - Geographic market analysis (countries, cities)
+                    - Digital marketing effectiveness (UTM sources, campaigns)
+                    - Customer behavior patterns (device types)
+                    - Online revenue and order trends
+                    
+                    Sales Data Summary:
+                    {data_summary}
+                    {conversation_context}
+                    
+                    Question Intent: {intent}
+                    Current User Question: {user_message}
+                    
+                    Instructions: Focus on online-specific metrics and insights. Include geographic and digital marketing analysis when relevant.
+                    """
+                elif intent == "OFFLINE_SALES":
+                    prompt = f"""
+                    You are an expert B2B sales analyst with conversation memory. Based on the following offline/wholesale sales data and conversation context, provide detailed analysis focused on reseller and wholesale performance.
+                    
+                    FOCUS AREAS FOR OFFLINE SALES:
+                    - Reseller and distributor performance analysis
+                    - B2B sales trends and patterns  
+                    - Wholesale volume and revenue metrics
+                    - Channel partner effectiveness
+                    - Regional wholesale market analysis
+                    
+                    Sales Data Summary:
+                    {data_summary}
+                    {conversation_context}
+                    
+                    Question Intent: {intent}
+                    Current User Question: {user_message}
+                    
+                    Instructions: Focus on wholesale and B2B metrics. Analyze reseller performance and partnership effectiveness.
+                    """
+                elif intent == "COMBINED_SALES":
+                    prompt = f"""
+                    You are an expert omnichannel sales analyst with conversation memory. Based on the following combined sales data from both online and offline channels, provide comprehensive multi-channel analysis.
+                    
+                    FOCUS AREAS FOR COMBINED SALES:
+                    - Total business performance across all channels
+                    - Channel mix and contribution analysis
+                    - Online vs offline performance comparison
+                    - Comprehensive revenue and volume metrics
+                    - Cross-channel insights and opportunities
+                    
+                    Sales Data Summary:
+                    {data_summary}
+                    {conversation_context}
+                    
+                    Question Intent: {intent}
+                    Current User Question: {user_message}
+                    
+                    Instructions: Provide holistic business analysis combining both online and offline performance. Highlight channel-specific strengths and total business impact.
                     """
                 else:
                     prompt = f"""
                     You are an expert sales data analyst with conversation memory. Based on the following sales data and conversation context, answer the user's question with detailed analysis.
-                    
-            
                     
                     CRITICAL: When calculating totals, ALWAYS aggregate across ALL resellers and ALL records in the data. 
                     Do NOT focus on individual resellers unless the question specifically asks for a reseller breakdown.
@@ -534,12 +664,66 @@ class SupabaseChatAgent:
         # Return unique months, sorted
         return sorted(list(set(found_months)))
     
+    def _is_online_sales_query(self, message_lower):
+        """Check if query is specifically about online sales"""
+        online_keywords = [
+            'online', 'ecommerce', 'e-commerce', 'website', 'web', 'direct', 
+            'consumer', 'b2c', 'digital', 'internet', 'webstore', 'shop online',
+            'utm', 'google', 'facebook', 'ads', 'campaign', 'traffic', 'device'
+        ]
+        return any(keyword in message_lower for keyword in online_keywords)
+    
+    def _is_offline_sales_query(self, message_lower):
+        """Check if query is specifically about offline/wholesale sales"""
+        offline_keywords = [
+            'offline', 'wholesale', 'b2b', 'reseller', 'distributor', 
+            'retail', 'partner', 'channel', 'physical', 'store', 'shops'
+        ]
+        return any(keyword in message_lower for keyword in offline_keywords)
+    
+    def _is_combined_sales_query(self, message_lower):
+        """Check if query wants both online and offline data"""
+        combined_keywords = [
+            'total sales', 'all sales', 'combined sales', 'overall sales',
+            'entire business', 'both channels', 'all channels', 'everything'
+        ]
+        return any(keyword in message_lower for keyword in combined_keywords)
+    
+    def _is_sales_comparison_query(self, message_lower):
+        """Check if query wants to compare online vs offline sales"""
+        comparison_indicators = [
+            ('online', 'offline'), ('ecommerce', 'wholesale'), ('direct', 'reseller'),
+            ('website', 'retail'), ('b2c', 'b2b'), ('digital', 'physical')
+        ]
+        
+        for word1, word2 in comparison_indicators:
+            if word1 in message_lower and word2 in message_lower:
+                return True
+        
+        # Also check for explicit comparison words with channel mentions
+        comparison_words = ['vs', 'versus', 'compare', 'difference between', 'against']
+        has_comparison = any(comp in message_lower for comp in comparison_words)
+        has_channels = ('online' in message_lower or 'offline' in message_lower or 
+                       'wholesale' in message_lower or 'ecommerce' in message_lower)
+        
+        return has_comparison and has_channels
+    
     def _analyze_question_intent(self, user_message):
         """Analyze user's question to understand their intent"""
         message_lower = user_message.lower()
         
+        # Sales channel specific queries - check first for specificity
+        if self._is_online_sales_query(message_lower):
+            return "ONLINE_SALES"
+        elif self._is_offline_sales_query(message_lower):
+            return "OFFLINE_SALES"
+        elif self._is_combined_sales_query(message_lower):
+            return "COMBINED_SALES"
+        elif self._is_sales_comparison_query(message_lower):
+            return "SALES_COMPARISON"
+        
         # Time-based queries
-        if any(word in message_lower for word in ['year', 'month', 'quarterly', '2023', '2024', '2025', 'monthly', 'yearly', 'trend']):
+        elif any(word in message_lower for word in ['year', 'month', 'quarterly', '2023', '2024', '2025', 'monthly', 'yearly', 'trend']):
             return "TIME_ANALYSIS"
         
         # Reseller/Customer analysis
@@ -576,23 +760,69 @@ class SupabaseChatAgent:
             resellers = set(row.get('reseller') for row in data if row.get('reseller'))
             currencies = set(row.get('currency') for row in data if row.get('currency'))
             
+            # Sales channel analysis
+            channels = set(row.get('channel') for row in data if row.get('channel'))
+            has_multiple_channels = len(channels) > 1
+            
+            # Channel-specific statistics
+            online_data = [row for row in data if row.get('channel') == 'online']
+            offline_data = [row for row in data if row.get('channel') == 'offline']
+            
+            online_sales = sum(float(row.get('sales_eur', 0) or 0) for row in online_data)
+            offline_sales = sum(float(row.get('sales_eur', 0) or 0) for row in offline_data)
+            
             # Time analysis
             years = set(row.get('year') for row in data if row.get('year'))
             months = set(row.get('month') for row in data if row.get('month'))
             
+            # Online-specific data analysis
+            countries = set(row.get('country') for row in online_data if row.get('country'))
+            utm_sources = set(row.get('utm_source') for row in online_data if row.get('utm_source'))
+            device_types = set(row.get('device_type') for row in online_data if row.get('device_type'))
+            
             # Build comprehensive analysis with intent-specific focus
+            if has_multiple_channels:
+                channel_info = f"""
+            MULTI-CHANNEL SALES ANALYSIS:
+            - Online Sales: €{online_sales:,.2f} ({len(online_data):,} orders)
+            - Offline Sales: €{offline_sales:,.2f} ({len(offline_data):,} transactions)
+            - Total Combined: €{total_sales:,.2f} ({len(data):,} total records)
+            - Channel Mix: {(online_sales/total_sales*100):.1f}% Online, {(offline_sales/total_sales*100):.1f}% Offline
+                """
+                if online_data:
+                    channel_info += f"""
+            - Online Markets: {len(countries)} countries ({', '.join(list(countries)[:5])}{'...' if len(countries) > 5 else ''})
+            - Traffic Sources: {', '.join(list(utm_sources)[:5])}{'...' if len(utm_sources) > 5 else ''}
+            - Device Types: {', '.join(list(device_types))}
+                    """
+            else:
+                if channels and 'online' in channels:
+                    channel_info = f"""
+            ONLINE SALES ANALYSIS:
+            - Total Online Sales: €{online_sales:,.2f} ({len(online_data):,} orders)
+            - Markets: {len(countries)} countries ({', '.join(list(countries)[:5])})
+            - Traffic Sources: {', '.join(list(utm_sources)[:5])}
+            - Device Types: {', '.join(list(device_types))}
+                    """
+                else:
+                    channel_info = f"""
+            OFFLINE/WHOLESALE SALES ANALYSIS:
+            - Total Offline Sales: €{offline_sales:,.2f} ({len(offline_data):,} transactions) 
+                    """
+            
             summary = f"""
             COMPLETE SALES DATA ANALYSIS ({len(data)} total records) - Intent: {intent}:
+            {channel_info}
             - Total Sales: €{total_sales:,.2f}
             - Total Quantity: {total_quantity:,} units
             - Unique Products: {len(products)} products
             - Unique Resellers: {len(resellers)} resellers
-            - Currencies: {', '.join(currencies)}
-            - Time Period: Years {sorted(years)}, Months {sorted(months)}
+            - Currencies: {', '.join(currencies) if currencies else 'EUR'}
+            - Time Period: Years {sorted(years) if years else 'Various'}, Months {sorted(months) if months else 'Various'}
             """
             
             # Add intent-specific note and detailed breakdowns
-            if intent == "COMPARISON":
+            if intent in ["COMPARISON", "SALES_COMPARISON"]:
                 summary += f"\n\nNOTE: This is a COMPARISON query. Focus on comparing different time periods, products, or resellers based on the user's question."
                 
                 # Add detailed period-specific breakdowns for comparisons
@@ -602,6 +832,12 @@ class SupabaseChatAgent:
                     
             elif intent == "TIME_ANALYSIS":
                 summary += f"\n\nNOTE: This is a TIME ANALYSIS query. Focus on temporal trends, seasonal patterns, and period-over-period changes."
+            elif intent == "ONLINE_SALES":
+                summary += f"\n\nNOTE: This is an ONLINE SALES query. Focus on ecommerce data, digital marketing metrics, and online customer behavior."
+            elif intent == "OFFLINE_SALES": 
+                summary += f"\n\nNOTE: This is an OFFLINE/WHOLESALE SALES query. Focus on reseller performance and B2B sales analysis."
+            elif intent == "COMBINED_SALES":
+                summary += f"\n\nNOTE: This is a COMBINED SALES query. Show totals across all sales channels and highlight channel-specific insights."
             
             # ALWAYS provide complete breakdowns for accurate analysis
             # 1. Complete Reseller Analysis

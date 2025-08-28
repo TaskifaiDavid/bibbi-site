@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "task-master": {
+      "command": "npx",
+      "args": ["task-master-ai"],
+      "agents": {
+        "product-manager": {
+          "configPath": ".claude/agents/product-manager.md",
+          "description": "Transform raw ideas or business goals into structured, actionable product plans. Create user personas, detailed user stories, and prioritized feature backlogs. Use for product strategy, requirements gathering, and roadmap planning."
+        }
+      }
+    }
+  }
+}
